@@ -20,7 +20,6 @@ package handlers
 import (
 	"fmt"
 	"net"
-	"netmsys/cmd/message"
 )
 
 // Agent represents the agent's information
@@ -30,7 +29,6 @@ type Agent struct {
 	ServerAddr string
 	UDPPort    string
 	TCPPort    string
-	Tasks      []message.Task
 }
 
 func NewAgent(args []string) (*Agent, error) {
@@ -54,7 +52,6 @@ func NewAgent(args []string) (*Agent, error) {
 		ServerAddr: agentServer,
 		UDPPort:    agentUDP,
 		TCPPort:    agentTCP,
-		Tasks:      []message.Task{},
 	}, nil
 }
 
