@@ -25,9 +25,9 @@ import (
 )
 
 // Receive function listens on a given UDP port and prints received messages
-func Receive(addr string, port string) {
+func Receive(port string) {
 	// Resolve the UDP address to listen on
-	udpAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
+	udpAddr, err := net.ResolveUDPAddr("udp", ":"+port)
 	if err != nil {
 		fmt.Println("Error resolving address:", err)
 		os.Exit(1)

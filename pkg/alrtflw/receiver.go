@@ -25,9 +25,9 @@ import (
 )
 
 // Receive listens on the given TCP address and receives messages
-func Receive(addr string, port string) {
+func Receive(port string) {
 	// Listen for incoming TCP connections
-	listener, err := net.Listen("tcp", addr+":"+port)
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		fmt.Println("Error starting TCP listener:", err)
 		return

@@ -56,9 +56,9 @@ func Start(args []string) {
 
 	// Parse arguments
 	agentID := args[1]
-	udpPort := args[2]
-	tcpPort := args[3]
-	serverAddr := args[4]
+	serverAddr := args[2]
+	udpPort := args[3]
+	tcpPort := args[4]
 
 	// Automatically get the local IP address of the agent
 	agentIP, err := GetLocalIP()
@@ -68,7 +68,7 @@ func Start(args []string) {
 	}
 
 	// Create a new agent with the provided ID, local IP address, and server address
-	agent := NewAgent(agentID, agentIP, udpPort, tcpPort, serverAddr)
+	agent := NewAgent(agentID, agentIP, serverAddr, udpPort, tcpPort)
 
 	// Display agent information
 	fmt.Printf("Agent %s (IP: %s) is ready.\n", agent.ID, agent.IPAddr)
@@ -77,13 +77,13 @@ func Start(args []string) {
 	// Start listening for UDP messages (Nettsk protocol)
 	go func() {
 		fmt.Println("Agent is listening for UDP messages on port", agent.UDPPort)
-		nettsk.Receive(agent.ServerAddr, agent.UDPPort) // Receive UDP messages only from the server
+		nettsk.Receive(agent.UDPPort) // Receive UDP messages only from the server
 	}()
 
 	// Start listening for TCP messages (AlertFlow protocol)
 	go func() {
 		fmt.Println("Agent is listening for TCP messages on port", agent.TCPPort)
-		alrtflw.Receive(agent.ServerAddr, agent.TCPPort) // Receive TCP messages only from the server
+		alrtflw.Receive(agent.TCPPort) // Receive TCP messages only from the server
 	}()
 
 	// Block the agent to keep it running indefinitely

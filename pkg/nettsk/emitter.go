@@ -47,6 +47,4 @@ func Send(addr string, port string, data []byte) {
 		fmt.Println("Error sending message:", err)
 		os.Exit(1)
 	}
-
-	fmt.Println("Message sent to", addr)
 }
