@@ -32,7 +32,6 @@ func (s *Server) StartCLI() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Print("> ") // Command-line prompt
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			continue
@@ -97,36 +96,25 @@ func (s *Server) loadCommand(command string) error {
 	// Add the task to the list and send it
 	s.Tasks = append(s.Tasks, task)
 	fmt.Printf("Loaded task %s.\n", task.TaskID)
-	s.SendTask(task.TaskID)
+	err = s.SendTask(task.TaskID)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s *Server) sendCommand(command string) error {
-	// Extract the path to the JSON file from the command
-	// Assuming the format is "send <path-to-json>"
 	commandParts := strings.Split(command, " ")
 	if len(commandParts) < 2 {
-		return fmt.Errorf("invalid command format. Usage: load <path-to-json>")
+		return fmt.Errorf("invalid command format. Usage: send <task-id>")
 	}
 
-	jsonFile := commandParts[1]
-
-	// Read the JSON file into a Task struct
-	var task message.Task
-	err := parsers.ReadJSONFile(jsonFile, &task)
+	taskID := commandParts[1]
+	err := s.SendTask(taskID)
 	if err != nil {
-		return fmt.Errorf("failed to read task JSON file: %v", err)
+		return err
 	}
-
-	// Check if the task is already in the array and send it
-	for _, existingTask := range s.Tasks {
-		if existingTask.TaskID == task.TaskID {
-			s.SendTask(task.TaskID)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("task %s is not loaded", task.TaskID)
+	return nil
 }
 
 func (s *Server) helpCommand(command string) {
@@ -140,7 +128,8 @@ func (s *Server) helpCommand(command string) {
 
 func (s *Server) manCommand() {
 	fmt.Println("Available commands:")
-	fmt.Println("  send <json-file>       - Send a task from the specified JSON file")
+	fmt.Println("  load <path-to-json>    - Send a task from the specified JSON file")
+	fmt.Println("  send <task-id>         - Send a task that is already loaded")
 	fmt.Println("  quit                   - Quit the server")
 	fmt.Println("  help <command_name>    - Show specific help for a command")
 }
@@ -153,12 +142,12 @@ func (s *Server) quitCommand() {
 // printCommandHelp displays specific help for a given command
 func printCommandHelp(command string) {
 	switch command {
-	case "load_task":
-		fmt.Println("Usage: load_task <json-file>")
+	case "load":
+		fmt.Println("Usage: load <path-to-json>")
 		fmt.Println("Description: Loads a task from the specified JSON file and sends it to its targets.")
 	case "send":
-		fmt.Println("Usage: send <json-file>")
-		fmt.Println("Description: Sends a task from the specified JSON file to its targets.")
+		fmt.Println("Usage: send <task-id>")
+		fmt.Println("Description: Sends a task that is already loaded, given it's ID.")
 	case "quit":
 		fmt.Println("Usage: quit")
 		fmt.Println("Description: Shuts down the server and exits the program.")

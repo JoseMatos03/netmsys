@@ -33,16 +33,14 @@ func (agent *Agent) StartCLI() {
 	// Start interface loop
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("Type a command: ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 
 		if input == "quit" {
-			fmt.Println("Goodbye!")
-			break
+			fmt.Println("Shutting down agent...")
+			os.Exit(0)
 		}
 
-		// Handle other commands here if needed
 		fmt.Printf("Unknown command: %s\n", input)
 	}
 }
