@@ -20,6 +20,7 @@ package handlers
 import (
 	"fmt"
 	"netmsys/cmd/message"
+	"netmsys/pkg/nettsk"
 	"os/exec"
 	"sync"
 	"time"
@@ -63,7 +64,7 @@ func (a *Agent) RunAgentTasks() {
 			wg.Add(1)
 			go func(t Task) {
 				defer wg.Done()
-				runTask(t)
+				a.runTask(t)
 
 				// Mark task as completed
 				mutex.Lock()
@@ -88,7 +89,7 @@ func (a *Agent) AddTask(newTask Task) {
 }
 
 // runTask handles the execution of a single task
-func runTask(task Task) {
+func (a *Agent) runTask(task Task) {
 	fmt.Printf("Starting task: %s, running every %d seconds\n", task.TaskID, task.Frequency)
 	ticker := time.NewTicker(time.Duration(task.Frequency) * time.Second)
 	defer ticker.Stop()
@@ -113,72 +114,71 @@ func runTask(task Task) {
 			}
 
 			// Run bandwidth tests
-			go runBandwidthTest(device.LinkOptions.Bandwidth, device.IPAddress)
+			go a.runBandwidthTest(device.LinkOptions.Bandwidth, device.IPAddress)
 
 			// Run jitter tests
-			go runJitterTest(device.LinkOptions.Jitter, device.IPAddress)
+			go a.runJitterTest(device.LinkOptions.Jitter, device.IPAddress)
 
 			// Run packet loss tests
-			go runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress)
+			go a.runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress)
 
 			// Run latency tests
-			go runLatencyTest(device.LinkOptions.Latency, device.IPAddress)
+			go a.runLatencyTest(device.LinkOptions.Latency, device.IPAddress)
 		}
 	}
 }
 
 // Below are functions that initiate the "iperf" and "ping" commands
 
-func runBandwidthTest(options BandwidthOptions, targetIP string) {
+func (a *Agent) runBandwidthTest(options BandwidthOptions, targetIP string) {
 	cmd := exec.Command("iperf", "-c", targetIP, "-p", fmt.Sprintf("%d", options.ClientPort),
 		"-t", fmt.Sprintf("%d", options.Duration), "-P", fmt.Sprintf("%d", options.ParallelStreams),
 		"-i", fmt.Sprintf("%d", options.Interval))
 	if options.Protocol == "udp" {
 		cmd.Args = append(cmd.Args, "-u")
 	}
-	runCommand(cmd, "Bandwidth Test")
+	a.runCommand(cmd, "Bandwidth Test")
 }
 
-func runJitterTest(options JitterOptions, targetIP string) {
+func (a *Agent) runJitterTest(options JitterOptions, targetIP string) {
 	cmd := exec.Command("iperf", "-c", targetIP, "-u", "-b", options.Bandwidth,
 		"-t", fmt.Sprintf("%d", options.Duration), "-p", fmt.Sprintf("%d", options.ClientPort),
 		"-l", fmt.Sprintf("%d", options.PacketSize), "-i", fmt.Sprintf("%d", options.Interval))
-	runCommand(cmd, "Jitter Test")
+	a.runCommand(cmd, "Jitter Test")
 }
 
-func runPacketLossTest(options PacketLossOptions, targetIP string) {
+func (a *Agent) runPacketLossTest(options PacketLossOptions, targetIP string) {
 	cmd := exec.Command("iperf", "-c", targetIP, "-u", "-b", options.Bandwidth,
 		"-t", fmt.Sprintf("%d", options.Duration), "-p", fmt.Sprintf("%d", options.ClientPort),
 		"-l", fmt.Sprintf("%d", options.PacketSize), "-i", fmt.Sprintf("%d", options.Interval))
-	runCommand(cmd, "Packet Loss Test")
+	a.runCommand(cmd, "Packet Loss Test")
 }
 
-func runLatencyTest(options LatencyOptions, targetIP string) {
+func (a *Agent) runLatencyTest(options LatencyOptions, targetIP string) {
 	cmd := exec.Command("ping", "-c", fmt.Sprintf("%d", options.PacketCount), "-s", fmt.Sprintf("%d", options.PacketSize),
 		"-i", fmt.Sprintf("%d", options.Interval), "-W", fmt.Sprintf("%d", options.Timeout), targetIP)
-	runCommand(cmd, "Latency Test")
+	a.runCommand(cmd, "Latency Test")
 }
 
 func monitorCPU(device DeviceOptions) {
 	// Simulate CPU monitoring logic
-	fmt.Printf("Monitoring CPU for device: %s\n", device.DeviceID)
 }
 
 func monitorRAM(device DeviceOptions) {
 	// Simulate RAM monitoring logic
-	fmt.Printf("Monitoring RAM for device: %s\n", device.DeviceID)
 }
 
 func monitorInterface(iface string, device DeviceOptions) {
 	// Simulate network interface monitoring logic
-	fmt.Printf("Monitoring interface %s for device: %s\n", iface, device.DeviceID)
 }
 
-func runCommand(cmd *exec.Cmd, testName string) {
+func (a *Agent) runCommand(cmd *exec.Cmd, testName string) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("%s failed: %v\n", testName, err)
 		return
 	}
-	fmt.Printf("%s output: %s\n", testName, string(output))
+
+	outputMessage := "OUTPUT|" + string(output)
+	nettsk.Send(a.ServerAddr, a.UDPPort, []byte(outputMessage))
 }

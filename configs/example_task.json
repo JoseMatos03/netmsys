@@ -21,13 +21,11 @@
       },
       "link_options": {
         "bandwidth": {
-          "bandwidth": {
-            "protocol": "tcp",
-            "duration": 10,
-            "client_port": 5001,
-            "parallel_streams": 5,
-            "interval": 1
-          }
+          "protocol": "udp",
+          "duration": 10,
+          "client_port": 5002,
+          "parallel_streams": 5,
+          "interval": 1
         },
         "jitter": {
           "protocol": "udp",
@@ -41,7 +39,7 @@
           "protocol": "udp",
           "bandwidth": "5M",
           "duration": 10,
-          "client_port": 5001,
+          "client_port": 5000,
           "packet_size": 1470,
           "interval": 1
         },

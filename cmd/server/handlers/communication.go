@@ -23,6 +23,7 @@ import (
 	"netmsys/cmd/message"
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
+	"os"
 	"strings"
 )
 
@@ -111,6 +112,17 @@ func (s *Server) handleAgentMessage(data []byte) error {
 			return err
 		}
 	}
+	if strings.HasPrefix(message, "OUTPUT|") {
+		// Extract the output data
+		outputData := strings.TrimPrefix(message, "OUTPUT|")
+
+		// Call the logOutput function to handle writing to the log file
+		err := s.logOutput(outputData)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Other cases will go here after...
 	return nil
 }
@@ -136,5 +148,32 @@ func (s *Server) registerAgent(agentID, ipAddr string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *Server) logOutput(outputData string) error {
+	// Define the output directory and log file path
+	outputDir := "outputs"
+	logFilePath := outputDir + "/output_log.txt" // TODO: Change to date or smth idk
+
+	// Ensure the output directory exists
+	err := os.MkdirAll(outputDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// Open the log file in append mode, create it if it doesn't exist
+	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open or create log file: %v", err)
+	}
+	defer file.Close()
+
+	// Write the output data to the file
+	_, err = file.WriteString(outputData + "\n")
+	if err != nil {
+		return fmt.Errorf("failed to write to log file: %v", err)
+	}
+
 	return nil
 }
