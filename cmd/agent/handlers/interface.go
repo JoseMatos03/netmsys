@@ -25,6 +25,24 @@ import (
 	"strings"
 )
 
+// StartCLI launches a simple Command-Line Interface (CLI) for the agent.
+//
+// The function displays agent information, such as its ID and the server address it is
+// communicating with, and provides an interactive loop for user input.
+//
+// Behavior:
+//   - The CLI informs the user that the agent is ready and provides its server communication details.
+//   - It continuously reads user input from the console and processes commands.
+//   - Supported commands:
+//   - `quit`: Terminates the agent process gracefully.
+//   - Any unrecognized commands are acknowledged with a message indicating that the command is unknown.
+//
+// Parameters:
+//   - agent (*Agent): A reference to the Agent instance, providing access to its ID and server address.
+//
+// Notes:
+//   - The function runs indefinitely until the user inputs the `quit` command.
+//   - Input is read from the standard input (console) and processed after trimming any whitespace.
 func (agent *Agent) StartCLI() {
 	// Display agent information
 	fmt.Printf("Agent %s is ready.\n", agent.ID)

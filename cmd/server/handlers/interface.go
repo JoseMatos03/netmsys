@@ -27,7 +27,24 @@ import (
 	"strings"
 )
 
-// CommandLineInterface runs an infinite loop to handle user commands.
+// StartCLI initializes and manages the Command-Line Interface (CLI) for the server.
+//
+// This function provides an interactive loop for user input to manage tasks and server operations.
+// It continuously waits for user commands and delegates them to specific handler functions.
+//
+// Supported commands:
+//   - `load <path-to-json>`: Loads a task from the given JSON file and sends it to agents.
+//   - `send <task-id>`: Sends a previously loaded task to agents.
+//   - `help <command_name>`: Displays help information for a specific command.
+//   - `man`: Lists all available commands with a brief description.
+//   - `quit`: Terminates the server process gracefully.
+//
+// Notes:
+//   - Commands are case-sensitive.
+//   - If an invalid command is entered, the CLI displays an error message.
+//
+// Parameters:
+//   - s (*Server): A reference to the Server instance.
 func (s *Server) StartCLI() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -68,6 +85,22 @@ func (s *Server) StartCLI() {
 	}
 }
 
+// loadCommand processes the "load" command to load and send a task from a JSON file.
+//
+// The command expects the format "load <path-to-json>". It reads the specified JSON file,
+// parses it into a Task structure, and sends the task to agents if it's not already loaded.
+//
+// Behavior:
+//   - Checks if the JSON file path is provided in the command.
+//   - Parses the JSON file into a `Task` structure.
+//   - Skips loading if the task is already present in the server's task list.
+//   - Sends the loaded task to agents using the `SendTask` method.
+//
+// Parameters:
+//   - command (string): The user input command string.
+//
+// Returns:
+//   - error: An error if the command format is invalid or the task fails to load or send.
 func (s *Server) loadCommand(command string) error {
 	// Extract the path to the JSON file from the command
 	// Assuming the format is "send <path-to-json>"
@@ -103,6 +136,16 @@ func (s *Server) loadCommand(command string) error {
 	return nil
 }
 
+// sendCommand processes the "send" command to send a preloaded task.
+//
+// The command expects the format "send <task-id>". It retrieves the task by its ID
+// from the server's task list and sends it to agents.
+//
+// Parameters:
+//   - command (string): The user input command string.
+//
+// Returns:
+//   - error: An error if the command format is invalid or the task fails to send.
 func (s *Server) sendCommand(command string) error {
 	commandParts := strings.Split(command, " ")
 	if len(commandParts) < 2 {
@@ -117,6 +160,13 @@ func (s *Server) sendCommand(command string) error {
 	return nil
 }
 
+// helpCommand displays specific help information for a command.
+//
+// If the command format is "help <command_name>", it displays detailed usage information for
+// the specified command. If no command name is provided, it suggests the proper usage format.
+//
+// Parameters:
+//   - command (string): The user input command string.
 func (s *Server) helpCommand(command string) {
 	helpArgs := strings.Split(command, " ")
 	if len(helpArgs) == 2 {
@@ -126,6 +176,9 @@ func (s *Server) helpCommand(command string) {
 	}
 }
 
+// manCommand lists all available commands with a brief description.
+//
+// This is a general overview of the server's CLI commands.
 func (s *Server) manCommand() {
 	fmt.Println("Available commands:")
 	fmt.Println("  load <path-to-json>    - Send a task from the specified JSON file")
@@ -134,12 +187,20 @@ func (s *Server) manCommand() {
 	fmt.Println("  help <command_name>    - Show specific help for a command")
 }
 
+// quitCommand gracefully shuts down the server process.
+//
+// The function displays a shutdown message and exits the program.
 func (s *Server) quitCommand() {
 	fmt.Println("Shutting down server...")
 	os.Exit(0)
 }
 
-// printCommandHelp displays specific help for a given command
+// printCommandHelp provides detailed usage information for a specific command.
+//
+// This helper function displays usage details and descriptions for commands supported by the CLI.
+//
+// Parameters:
+//   - command (string): The name of the command for which help is requested.
 func printCommandHelp(command string) {
 	switch command {
 	case "load":

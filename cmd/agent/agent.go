@@ -37,6 +37,4 @@ func main() {
 	go agent.StartUDPIperfServer()
 	agent.Register()
 	agent.StartCLI()
-
-	// The program will continue running until the user enters the "quit" command
 }
