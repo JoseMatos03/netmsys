@@ -71,6 +71,6 @@ func (a *Agent) registerTask(task string) {
 		fmt.Println("Couldn't register task!")
 	}
 
-	a.Tasks = append(a.Tasks, newTask)
+	a.AddTask(newTask)
 	fmt.Println("Registered new task:", newTask.TaskID)
 }

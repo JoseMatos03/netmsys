@@ -16,3 +16,169 @@
 //
 // ---------------------------------------------------------------------------------
 package handlers
+
+import (
+	"fmt"
+	"netmsys/cmd/message"
+	"os/exec"
+	"sync"
+	"time"
+)
+
+type Task = message.Task
+type DeviceOptions = message.DeviceOptions
+type MonitorOptions = message.MonitorOptions
+type LinkOptions = message.LinkOptions
+type BandwidthOptions = message.BandwidthOptions
+type JitterOptions = message.JitterOptions
+type PacketLossOptions = message.PacketLossOptions
+type LatencyOptions = message.LatencyOptions
+type AlertFlowConditions = message.AlertFlowConditions
+
+// RunAgentTasks starts monitoring tasks in separate goroutines
+var (
+	tasks      = []Task{}              // Slice of tasks to be processed
+	taskChan   = make(chan Task)       // Channel to add new tasks
+	runningMap = make(map[string]bool) // Map to track running tasks
+	mutex      sync.Mutex              // Mutex to protect the runningMap
+)
+
+func (a *Agent) RunAgentTasks() {
+	var wg sync.WaitGroup
+
+	// Goroutine to listen for new tasks and run them
+	go func() {
+		for task := range taskChan {
+			mutex.Lock()
+			if runningMap[task.TaskID] {
+				// Task is already running, skip to avoid duplication
+				mutex.Unlock()
+				continue
+			}
+			// Mark the task as running
+			runningMap[task.TaskID] = true
+			mutex.Unlock()
+
+			// Add to WaitGroup and run the task
+			wg.Add(1)
+			go func(t Task) {
+				defer wg.Done()
+				runTask(t)
+
+				// Mark task as completed
+				mutex.Lock()
+				delete(runningMap, t.TaskID)
+				mutex.Unlock()
+			}(task)
+		}
+	}()
+
+	// Initial load of tasks
+	for _, task := range tasks {
+		taskChan <- task
+	}
+
+	// Wait for all tasks to finish before exiting
+	wg.Wait()
+}
+
+// Function to add a new task
+func (a *Agent) AddTask(newTask Task) {
+	taskChan <- newTask
+}
+
+// runTask handles the execution of a single task
+func runTask(task Task) {
+	fmt.Printf("Starting task: %s, running every %d seconds\n", task.TaskID, task.Frequency)
+	ticker := time.NewTicker(time.Duration(task.Frequency) * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		for _, device := range task.DeviceOptions {
+			fmt.Printf("Running task for device: %s\n", device.DeviceID)
+
+			// Monitor CPU usage if needed
+			if device.MonitorOptions.MonitorCPU {
+				go monitorCPU(device)
+			}
+
+			// Monitor RAM usage if needed
+			if device.MonitorOptions.MonitorRAM {
+				go monitorRAM(device)
+			}
+
+			// Monitor interfaces
+			for _, iface := range device.MonitorOptions.Interfaces {
+				go monitorInterface(iface, device)
+			}
+
+			// Run bandwidth tests
+			go runBandwidthTest(device.LinkOptions.Bandwidth, device.IPAddress)
+
+			// Run jitter tests
+			go runJitterTest(device.LinkOptions.Jitter, device.IPAddress)
+
+			// Run packet loss tests
+			go runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress)
+
+			// Run latency tests
+			go runLatencyTest(device.LinkOptions.Latency, device.IPAddress)
+		}
+	}
+}
+
+// Below are functions that initiate the "iperf" and "ping" commands
+
+func runBandwidthTest(options BandwidthOptions, targetIP string) {
+	cmd := exec.Command("iperf", "-c", targetIP, "-p", fmt.Sprintf("%d", options.ClientPort),
+		"-t", fmt.Sprintf("%d", options.Duration), "-P", fmt.Sprintf("%d", options.ParallelStreams),
+		"-i", fmt.Sprintf("%d", options.Interval))
+	if options.Protocol == "udp" {
+		cmd.Args = append(cmd.Args, "-u")
+	}
+	runCommand(cmd, "Bandwidth Test")
+}
+
+func runJitterTest(options JitterOptions, targetIP string) {
+	cmd := exec.Command("iperf", "-c", targetIP, "-u", "-b", options.Bandwidth,
+		"-t", fmt.Sprintf("%d", options.Duration), "-p", fmt.Sprintf("%d", options.ClientPort),
+		"-l", fmt.Sprintf("%d", options.PacketSize), "-i", fmt.Sprintf("%d", options.Interval))
+	runCommand(cmd, "Jitter Test")
+}
+
+func runPacketLossTest(options PacketLossOptions, targetIP string) {
+	cmd := exec.Command("iperf", "-c", targetIP, "-u", "-b", options.Bandwidth,
+		"-t", fmt.Sprintf("%d", options.Duration), "-p", fmt.Sprintf("%d", options.ClientPort),
+		"-l", fmt.Sprintf("%d", options.PacketSize), "-i", fmt.Sprintf("%d", options.Interval))
+	runCommand(cmd, "Packet Loss Test")
+}
+
+func runLatencyTest(options LatencyOptions, targetIP string) {
+	cmd := exec.Command("ping", "-c", fmt.Sprintf("%d", options.PacketCount), "-s", fmt.Sprintf("%d", options.PacketSize),
+		"-i", fmt.Sprintf("%d", options.Interval), "-W", fmt.Sprintf("%d", options.Timeout), targetIP)
+	runCommand(cmd, "Latency Test")
+}
+
+func monitorCPU(device DeviceOptions) {
+	// Simulate CPU monitoring logic
+	fmt.Printf("Monitoring CPU for device: %s\n", device.DeviceID)
+}
+
+func monitorRAM(device DeviceOptions) {
+	// Simulate RAM monitoring logic
+	fmt.Printf("Monitoring RAM for device: %s\n", device.DeviceID)
+}
+
+func monitorInterface(iface string, device DeviceOptions) {
+	// Simulate network interface monitoring logic
+	fmt.Printf("Monitoring interface %s for device: %s\n", iface, device.DeviceID)
+}
+
+func runCommand(cmd *exec.Cmd, testName string) {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("%s failed: %v\n", testName, err)
+		return
+	}
+	fmt.Printf("%s output: %s\n", testName, string(output))
+}
