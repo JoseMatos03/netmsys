@@ -77,9 +77,18 @@ func (s *Server) loadCommand(command string) error {
 	var task message.Task
 	err := parsers.ReadJSONFile(jsonFile, &task)
 	if err != nil {
-		return fmt.Errorf("failed to read task JSON file")
+		return fmt.Errorf("failed to read task JSON file: %v", err)
 	}
 
+	// Check if the task is already in the array
+	for _, existingTask := range s.Tasks {
+		if existingTask.TaskID == task.TaskID {
+			fmt.Printf("Task %s is already loaded. Skipping.\n", task.TaskID)
+			return nil
+		}
+	}
+
+	// Add the task to the list and send it
 	s.Tasks = append(s.Tasks, task)
 	fmt.Printf("Loaded task %s.\n", task.TaskID)
 	s.SendTask(task.TaskID)

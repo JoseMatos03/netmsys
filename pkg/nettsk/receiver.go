@@ -73,7 +73,7 @@ func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) 
 			}
 
 			// Handle communication with the new client on the new port
-			go handleClient(clientAddr, newPort, dataChannel, errorChannel, numPackets)
+			go handleClient(mainConn, clientAddr, newPort, dataChannel, errorChannel, numPackets)
 		}
 		mu.Unlock()
 	}
@@ -95,7 +95,7 @@ func establishAgreement(mainConn *net.UDPConn) (int, *net.UDPAddr, error) {
 	return 0, nil, fmt.Errorf("unrecognizable packet")
 }
 
-func handleClient(clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, errorChannel chan<- error, numPackets int) {
+func handleClient(oldConn *net.UDPConn, clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, errorChannel chan<- error, numPackets int) {
 	clientAddrPort, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		fmt.Println("Error resolving client address port:", err)
@@ -113,7 +113,7 @@ func handleClient(clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, 
 
 	// Process packet reception with recovery mechanisms
 	receivedPackets := make(map[int][]byte)
-	expectedSeq := receivePackets(conn, clientAddr, numPackets, receivedPackets)
+	expectedSeq := receivePackets(oldConn, port, conn, clientAddr, numPackets, receivedPackets)
 	if expectedSeq < numPackets {
 		// Handle any missing packets after initial reception
 		err = handleMissingPackets(conn, clientAddr, numPackets, receivedPackets)
@@ -127,13 +127,12 @@ func handleClient(clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, 
 	finalizeTransmission(conn, clientAddr, dataChannel, receivedPackets, numPackets)
 }
 
-func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) int {
+func receivePackets(oldConn *net.UDPConn, newPort int, conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) int {
 	buf := make([]byte, 1024)
-	receivedSeq := -1
 	expectedSeq := 0
 	retransmitCount := 0
 
-	for receivedSeq < numPackets-1 && retransmitCount < MAX_RETRANSMIT {
+	for expectedSeq < numPackets && retransmitCount < MAX_RETRANSMIT {
 		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
 		n, _, err := conn.ReadFromUDP(buf)
 
@@ -145,7 +144,7 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 
 		packet := string(buf[:n])
 		if strings.HasPrefix(packet, "AGREEMENT") {
-			// Send ack agreement again
+			oldConn.WriteToUDP([]byte(fmt.Sprintf(ACK_AGREEMENT, newPort)), clientAddr)
 			continue
 		}
 		parts := strings.SplitN(packet, "|", 2)
@@ -153,11 +152,9 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 
 		if seqNum == expectedSeq {
 			receivedPackets[seqNum] = []byte(parts[1])
-			receivedSeq = seqNum
 			expectedSeq++
 			retransmitCount = 0
 		} else if seqNum > expectedSeq {
-			receivedSeq = seqNum
 			receivedPackets[seqNum] = []byte(parts[1])
 		}
 	}

@@ -136,19 +136,19 @@ func (a *Agent) runTask(task Task) {
 			// Run jitter test
 			go func() {
 				defer wg.Done()
-				go a.runJitterTest(device.LinkOptions.Jitter, device.IPAddress, task.TaskID, iteration)
+				a.runJitterTest(device.LinkOptions.Jitter, device.IPAddress, task.TaskID, iteration)
 			}()
 
 			go func() {
 				defer wg.Done()
 				// Run packet loss test
-				go a.runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress, task.TaskID, iteration)
+				a.runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress, task.TaskID, iteration)
 			}()
 
 			go func() {
 				defer wg.Done()
 				// Run latency test
-				go a.runLatencyTest(device.LinkOptions.Latency, device.IPAddress, task.TaskID, iteration)
+				a.runLatencyTest(device.LinkOptions.Latency, device.IPAddress, task.TaskID, iteration)
 			}()
 
 			wg.Wait()

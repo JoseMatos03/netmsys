@@ -22,7 +22,7 @@ const (
 	MAX_RETRANSMIT = 5
 
 	// TIMEOUT defines the duration to wait before declaring a packet timeout.
-	TIMEOUT = 5 * time.Second
+	TIMEOUT = 2 * time.Second
 
 	// MAX_PACKET_SIZE defines the maximum size of each packet that is sent.
 	MAX_PACKET_SIZE = 1024
