@@ -22,6 +22,18 @@ import (
 	"net"
 )
 
+// Receive listens for incoming TCP connections on the specified port and forwards
+// received data to a provided channel. Errors encountered during the listening
+// or connection handling process are sent to a separate error channel.
+//
+// Parameters:
+//   - port: The port on which the server will listen for incoming connections.
+//   - dataChannel: A channel to which received data (as byte slices) will be sent.
+//   - errorChannel: A channel to which any encountered errors will be sent.
+//
+// Note:
+//   - The function runs indefinitely, processing connections in a loop until
+//     the listener is explicitly closed.
 func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -42,7 +54,16 @@ func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) 
 	}
 }
 
-// handleConnection processes an incoming TCP connection
+// handleConnection processes an incoming TCP connection, reads data from it,
+// and forwards the data or any encountered error to the respective channels.
+//
+// Parameters:
+//   - conn: The active TCP connection to handle.
+//   - dataChannel: A channel to which the received data (as a byte slice) will be sent.
+//   - errorChannel: A channel to which any encountered errors will be sent.
+//
+// Note:
+//   - The function closes the connection once processing is complete.
 func handleConnection(conn net.Conn, dataChannel chan<- []byte, errorChannel chan<- error) {
 	defer conn.Close()
 	buffer := make([]byte, 1024)

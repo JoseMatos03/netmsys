@@ -23,8 +23,16 @@ import (
 	"net"
 )
 
-// Send sends a message to the given TCP server address
-// arrays de bits
+// Send establishes a TCP connection to a specified address and port, transmits data,
+// and ensures the connection is closed properly after the transmission.
+//
+// Parameters:
+//   - addr: The IP address of the target server.
+//   - port: The port of the target server.
+//   - data: The data to be sent as a byte slice.
+//
+// Returns:
+//   - An error if the connection or data transmission fails, otherwise nil.
 func Send(addr string, port string, data []byte) {
 	// Establish a TCP connection
 	conn, err := net.Dial("tcp", addr+":"+port)

@@ -30,6 +30,18 @@ import (
 	"time"
 )
 
+// Receive listens for incoming UDP messages on the specified port and handles
+// client communication with packet retransmission and recovery mechanisms.
+//
+// Parameters:
+//   - port: The port to listen for incoming UDP connections.
+//   - dataChannel: A channel used to send the final reassembled message.
+//   - errorChannel: A channel used to report errors during communication.
+//
+// Behavior:
+//   - Listens for AGREEMENT messages from clients, determines the number of expected packets,
+//     and dynamically assigns a unique port for each client.
+//   - Delegates data reception and recovery to a separate goroutine per client.
 func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	mainAddr, err := net.ResolveUDPAddr("udp", ":"+port)
 	if err != nil {
@@ -79,6 +91,16 @@ func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) 
 	}
 }
 
+// establishAgreement handles the initial communication with a client
+// to agree on the number of packets expected.
+//
+// Parameters:
+//   - mainConn: The UDP connection used for initial communication.
+//
+// Returns:
+//   - int: The number of packets expected from the client.
+//   - *net.UDPAddr: The address of the client.
+//   - error: An error if the agreement could not be established.
 func establishAgreement(mainConn *net.UDPConn) (int, *net.UDPAddr, error) {
 	buffer := make([]byte, 1024)
 	n, clientAddr, err := mainConn.ReadFromUDP(buffer)
@@ -95,6 +117,16 @@ func establishAgreement(mainConn *net.UDPConn) (int, *net.UDPAddr, error) {
 	return 0, nil, fmt.Errorf("unrecognizable packet")
 }
 
+// handleClient manages communication with an individual client, ensuring
+// all packets are received and recovered if necessary.
+//
+// Parameters:
+//   - oldConn: The main UDP connection.
+//   - clientAddr: The client's address.
+//   - port: The new port assigned to the client.
+//   - dataChannel: The channel to send the final reassembled message.
+//   - errorChannel: The channel to report errors.
+//   - numPackets: The total number of packets expected from the client.
 func handleClient(oldConn *net.UDPConn, clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, errorChannel chan<- error, numPackets int) {
 	clientAddrPort, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -127,6 +159,19 @@ func handleClient(oldConn *net.UDPConn, clientAddr *net.UDPAddr, port int, dataC
 	finalizeTransmission(conn, clientAddr, dataChannel, receivedPackets, numPackets)
 }
 
+// receivePackets handles the reception of packets from a client, ensuring proper sequencing
+// and initiating retransmission requests for missing packets.
+//
+// Parameters:
+//   - oldConn: The main UDP connection used for initial communication.
+//   - newPort: The dynamically assigned port for the client.
+//   - conn: The dedicated UDP connection for communication with the client.
+//   - clientAddr: The address of the client.
+//   - numPackets: The total number of packets expected from the client.
+//   - receivedPackets: A map to store received packets, keyed by their sequence numbers.
+//
+// Returns:
+//   - int: The next expected sequence number, which indicates the progress of packet reception.
 func receivePackets(oldConn *net.UDPConn, newPort int, conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) int {
 	buf := make([]byte, 1024)
 	expectedSeq := 0
