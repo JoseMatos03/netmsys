@@ -41,13 +41,11 @@ import (
 func Send(addr string, port string, data []byte) error {
 	serverAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
 	if err != nil {
-		fmt.Println("Error resolving server address:", err)
 		return err
 	}
 
 	conn, err := net.ListenUDP("udp", nil)
 	if err != nil {
-		fmt.Println("Error dialing UDP:", err)
 		return err
 	}
 	defer conn.Close()
@@ -60,7 +58,6 @@ func Send(addr string, port string, data []byte) error {
 
 	newAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, newPort))
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -68,6 +65,7 @@ func Send(addr string, port string, data []byte) error {
 	if err != nil {
 		return err
 	}
+
 	err = awaitAcknowledgment(conn, packets, newAddr)
 	if err != nil {
 		return err
@@ -150,8 +148,7 @@ func sendPackets(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) e
 		packetWithSeq := fmt.Sprintf("%d|", i) + string(packet)
 		_, err := conn.WriteToUDP([]byte(packetWithSeq), serverAddr)
 		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("failed to send packets")
+			return err
 		}
 	}
 	return nil
@@ -171,10 +168,10 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte, serverAddr *net.UD
 	buf := make([]byte, 1024)
 
 	for {
-		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
+		conn.SetReadDeadline(time.Now().Add(TIMEOUT + 3*time.Second))
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			return fmt.Errorf("timeout waiting for ACK. assuming successful transmission")
+			return err
 		}
 
 		ack := string(buf[:n])
