@@ -473,7 +473,6 @@ func (a *Agent) monitorInterface(iface string, ifaceIP string, stats int, jitter
 		// Run Iperf to measure jitter and packet loss
 		jitter, packetLoss, err := a.runIperfForInterface(ifaceIP, 10) // Duration set to 10 seconds
 		if err != nil {
-			log.Printf("Failed to run Iperf for interface %s: %v", iface, err)
 			continue
 		}
 
@@ -528,7 +527,6 @@ func (a *Agent) runIperfForInterface(ifaceIP string, duration int) (float64, flo
 	// Match and extract jitter
 	jitterMatch := jitterRegex.FindStringSubmatch(output)
 	if jitterMatch == nil {
-		log.Printf("Failed to parse jitter from Iperf output")
 		return 0, 0, fmt.Errorf("failed to parse jitter")
 	}
 	jitter, err := strconv.ParseFloat(jitterMatch[1], 64)
@@ -539,7 +537,6 @@ func (a *Agent) runIperfForInterface(ifaceIP string, duration int) (float64, flo
 	// Match and extract packet loss
 	packetLossMatch := packetLossRegex.FindStringSubmatch(output)
 	if packetLossMatch == nil {
-		log.Printf("Failed to parse packet loss from Iperf output: %s", output)
 		return 0, 0, fmt.Errorf("failed to parse packet loss")
 	}
 	packetLoss, err := strconv.ParseFloat(packetLossMatch[3], 64)

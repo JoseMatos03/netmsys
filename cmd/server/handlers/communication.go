@@ -133,7 +133,7 @@ func (s *Server) ListenAlerts() {
 			// Process received data
 			fmt.Printf("%s\n", string(data))
 		case err := <-errorChannel:
-			fmt.Printf("communication.ListenAgents(): Error receiving data: %s\n", err)
+			fmt.Println(err)
 		}
 	}
 }

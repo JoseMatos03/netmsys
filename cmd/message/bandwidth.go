@@ -13,7 +13,7 @@ type BandwidthEntry struct {
 
 func ParseBandwidthOutput(output string) string {
 	// Regex to match lines that contain bandwidth information
-	re := regexp.MustCompile(`^\[\s*\d+\]\s+([\d\.]+-[\d\.]+)\s+sec\s+([\d\.]+\s+[KMGT]?Bytes)\s+([\d\.]+\s+[KMGT]?bits/sec)\s+[\d\.]+\s+ms\s+\d+\/\d+\s+\(\d+%\)`)
+	re := regexp.MustCompile(`\[\s*\d+\]\s+(\d+\.\d+-\d+\.\d+) sec\s+([\d\.]+ [KMG]Bytes)\s+([\d\.]+ [KMG]bits/sec)\s+[\d\.]+ ms\s+\d+/\d+ \(\d+%\)`)
 	match := re.FindStringSubmatch(output)
 
 	if match == nil {
