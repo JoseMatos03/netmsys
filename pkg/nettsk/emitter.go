@@ -36,7 +36,7 @@ func Send(addr string, port string, data []byte) error {
 		return err
 	}
 
-	conn, err := net.DialUDP("udp", nil, serverAddr)
+	conn, err := net.ListenUDP("udp", nil)
 	if err != nil {
 		fmt.Println("Error dialing UDP:", err)
 		return err
@@ -44,30 +44,22 @@ func Send(addr string, port string, data []byte) error {
 	defer conn.Close()
 
 	numPackets, packets := calculatePackets(data)
-	newPort, err := handleAgreement(conn, numPackets)
+	newPort, err := handleAgreement(conn, serverAddr, numPackets)
 	if err != nil {
 		return err
 	}
 
-	// Create a new UDP connection to the server using the new port
-	newServerAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, newPort))
+	newAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, newPort))
 	if err != nil {
-		fmt.Println("Error resolving new server address:", err)
+		fmt.Println(err)
 		return err
 	}
 
-	newConn, err := net.DialUDP("udp", nil, newServerAddr)
-	if err != nil {
-		fmt.Println("Error dialing new UDP connection:", err)
-		return err
-	}
-	defer newConn.Close()
-
-	err = sendPackets(newConn, packets)
+	err = sendPackets(conn, packets, newAddr)
 	if err != nil {
 		return err
 	}
-	err = awaitAcknowledgment(newConn, packets)
+	err = awaitAcknowledgment(conn, packets, newAddr)
 	if err != nil {
 		return err
 	}
@@ -90,12 +82,12 @@ func calculatePackets(data []byte) (int, [][]byte) {
 	return numPackets, packets
 }
 
-func handleAgreement(conn *net.UDPConn, numPackets int) (int, error) {
+func handleAgreement(conn *net.UDPConn, serverAddr *net.UDPAddr, numPackets int) (int, error) {
 	agreementPacket := []byte(fmt.Sprintf(AGREEMENT, numPackets))
 	retransmits := 0
 
 	for retransmits < MAX_RETRANSMIT {
-		conn.Write(agreementPacket)
+		conn.WriteToUDP(agreementPacket, serverAddr)
 
 		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
 		buf := make([]byte, 1024)
@@ -115,18 +107,19 @@ func handleAgreement(conn *net.UDPConn, numPackets int) (int, error) {
 	return -1, fmt.Errorf("connection timed-out trying to send agreement")
 }
 
-func sendPackets(conn *net.UDPConn, packets [][]byte) error {
+func sendPackets(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) error {
 	for i, packet := range packets {
 		packetWithSeq := fmt.Sprintf("%d|", i) + string(packet)
-		_, err := conn.Write([]byte(packetWithSeq))
+		_, err := conn.WriteToUDP([]byte(packetWithSeq), serverAddr)
 		if err != nil {
+			fmt.Println(err)
 			return fmt.Errorf("failed to send packets")
 		}
 	}
 	return nil
 }
 
-func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
+func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) error {
 	buf := make([]byte, 1024)
 
 	for {
@@ -144,7 +137,7 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 		if strings.HasPrefix(ack, "RECOVERY") {
 			parts := strings.Split(ack, "|")
 			recoverySeq, _ := strconv.Atoi(parts[1])
-			err := retransmitPackets(conn, packets, recoverySeq, false) // false indicates normal recovery
+			err := retransmitPackets(conn, serverAddr, packets, recoverySeq, false) // false indicates normal recovery
 			if err != nil {
 				return err
 			}
@@ -153,7 +146,7 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 		if strings.HasPrefix(ack, "FAST_RECOVERY") {
 			parts := strings.Split(ack, "|")
 			recoverySeq, _ := strconv.Atoi(parts[1])
-			err := retransmitPackets(conn, packets, recoverySeq, true) // true indicates fast recovery
+			err := retransmitPackets(conn, serverAddr, packets, recoverySeq, true) // true indicates fast recovery
 			if err != nil {
 				return err
 			}
@@ -161,12 +154,12 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 	}
 }
 
-func retransmitPackets(conn *net.UDPConn, packets [][]byte, startSeq int, fast bool) error {
+func retransmitPackets(conn *net.UDPConn, serverAddr *net.UDPAddr, packets [][]byte, startSeq int, fast bool) error {
 	if fast {
 		// Fast recovery: retransmit all packets from startSeq onward
 		for i := startSeq; i < len(packets); i++ {
 			packetWithSeq := fmt.Sprintf("%d|", i) + string(packets[i])
-			_, err := conn.Write([]byte(packetWithSeq))
+			_, err := conn.WriteToUDP([]byte(packetWithSeq), serverAddr)
 			if err != nil {
 				return fmt.Errorf("failed to retransmit with FAST_RECOVERY")
 			}
@@ -174,7 +167,7 @@ func retransmitPackets(conn *net.UDPConn, packets [][]byte, startSeq int, fast b
 	} else {
 		// Normal recovery: retransmit only the missing packet
 		packetWithSeq := fmt.Sprintf("%d|", startSeq) + string(packets[startSeq])
-		_, err := conn.Write([]byte(packetWithSeq))
+		_, err := conn.WriteToUDP([]byte(packetWithSeq), serverAddr)
 		if err != nil {
 			return fmt.Errorf("failed to retransmit with RECOVERY")
 		}
