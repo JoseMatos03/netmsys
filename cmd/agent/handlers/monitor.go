@@ -101,7 +101,7 @@ func (a *Agent) AddTask(newTask Task) {
 func (a *Agent) runTask(task Task) {
 	fmt.Printf("Starting task: %s, running every %d seconds\n", task.TaskID, task.Frequency)
 	ticker := time.NewTicker(time.Duration(task.Frequency) * time.Second)
-	iteration := 0
+	iteration := 1
 	defer ticker.Stop()
 
 	// Monitor CPU usage if needed
@@ -119,24 +119,32 @@ func (a *Agent) runTask(task Task) {
 		go a.monitorInterface(iface.Name, iface.IP, task.AlertFlowConditions.InterfaceStats, task.AlertFlowConditions.Jitter, task.AlertFlowConditions.PacketLoss, task.Frequency)
 	}
 
-	for range ticker.C {
-		iteration++
-
+	// Function to execute tests
+	executeTests := func() {
 		for _, device := range task.DeviceOptions {
 			fmt.Printf("Running task for device: %s\n", device.DeviceID)
 
-			// Run bandwidth tests
+			// Run bandwidth test
 			go a.runBandwidthTest(device.LinkOptions.Bandwidth, device.IPAddress, task.TaskID, iteration)
 
-			// Run jitter tests
+			// Run jitter test
 			go a.runJitterTest(device.LinkOptions.Jitter, device.IPAddress, task.TaskID, iteration)
 
-			// Run packet loss tests
+			// Run packet loss test
 			go a.runPacketLossTest(device.LinkOptions.PacketLoss, device.IPAddress, task.TaskID, iteration)
 
-			// Run latency tests
+			// Run latency test
 			go a.runLatencyTest(device.LinkOptions.Latency, device.IPAddress, task.TaskID, iteration)
 		}
+	}
+
+	// Execute tests instantly
+	executeTests()
+
+	// Frequency loop of executions
+	for range ticker.C {
+		iteration++
+		executeTests()
 	}
 }
 
@@ -373,7 +381,6 @@ func (a *Agent) runIperfForInterface(ifaceIP string, duration int) (float64, flo
 		log.Printf("Failed to parse jitter from Iperf output: %s", output)
 		return 0, 0, fmt.Errorf("failed to parse jitter")
 	}
-	fmt.Println("Jitter Match:", jitterMatch) // Debug: Print the match
 	jitter, err := strconv.ParseFloat(jitterMatch[1], 64)
 	if err != nil {
 		return 0, 0, err
@@ -385,7 +392,6 @@ func (a *Agent) runIperfForInterface(ifaceIP string, duration int) (float64, flo
 		log.Printf("Failed to parse packet loss from Iperf output: %s", output)
 		return 0, 0, fmt.Errorf("failed to parse packet loss")
 	}
-	fmt.Println("Packet Loss Match:", packetLossMatch) // Debug: Print the match
 	packetLoss, err := strconv.ParseFloat(packetLossMatch[3], 64)
 	if err != nil {
 		return 0, 0, err

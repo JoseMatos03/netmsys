@@ -1,6 +1,6 @@
 {
   "task_id": "t1",
-  "frequency": 20,
+  "frequency": 60,
   "targets": [
     "PC2"
   ],
@@ -32,8 +32,8 @@
           "protocol": "udp",
           "duration": 10,
           "client_port": 5001,
-          "parallel_streams": 5,
-          "interval": 1
+          "parallel_streams": 1,
+          "interval": 2
         },
         "jitter": {
           "protocol": "udp",
