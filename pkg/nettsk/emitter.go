@@ -29,52 +29,52 @@ import (
 	"time"
 )
 
-// Send transmits data to a specific address and port over UDP.
-// It splits the data into packets, initiates an agreement with the receiver,
-// sends all packets, and handles recovery if packets are lost or timeouts occur.
-//
-// Parameters:
-// - addr: The IP address to send data to.
-// - port: The port number to use for sending data.
-// - data: The data to be sent.
 func Send(addr string, port string, data []byte) error {
-	// Resolve the UDP address to send to
-	udpAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
+	serverAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
 	if err != nil {
-		return fmt.Errorf("error resolving address")
+		fmt.Println("Error resolving server address:", err)
+		return err
 	}
 
-	// Create a UDP connection
-	conn, err := net.DialUDP("udp", nil, udpAddr)
+	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
-		return fmt.Errorf("error dialing UDP")
+		fmt.Println("Error dialing UDP:", err)
+		return err
 	}
 	defer conn.Close()
 
 	numPackets, packets := calculatePackets(data)
-
-	succ, err := sendAgreement(conn, numPackets)
-	if succ {
-		err = sendPackets(conn, packets)
-		if err != nil {
-			return err
-		}
-		err = awaitAcknowledgment(conn, packets)
-		if err != nil {
-			return err
-		}
+	newPort, err := handleAgreement(conn, numPackets)
+	if err != nil {
+		return err
 	}
-	return err
+
+	// Create a new UDP connection to the server using the new port
+	newServerAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", addr, newPort))
+	if err != nil {
+		fmt.Println("Error resolving new server address:", err)
+		return err
+	}
+
+	newConn, err := net.DialUDP("udp", nil, newServerAddr)
+	if err != nil {
+		fmt.Println("Error dialing new UDP connection:", err)
+		return err
+	}
+	defer newConn.Close()
+
+	err = sendPackets(newConn, packets)
+	if err != nil {
+		return err
+	}
+	err = awaitAcknowledgment(newConn, packets)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// calculatePackets splits the input data into multiple packets based on MaxPacketSize.
-//
-// Parameters:
-// - data: The data to be split.
-//
-// Returns:
-// - The total number of packets.
-// - A slice of byte slices, each containing a packet's data.
 func calculatePackets(data []byte) (int, [][]byte) {
 	numPackets := (len(data) + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE
 	var packets [][]byte
@@ -90,21 +90,11 @@ func calculatePackets(data []byte) (int, [][]byte) {
 	return numPackets, packets
 }
 
-// sendAgreement initiates the communication by sending an agreement packet with
-// the number of packets to be transmitted. Retransmits if no acknowledgment is received.
-//
-// Parameters:
-// - conn: The UDP connection to send and receive packets on.
-// - numPackets: The total number of packets to be sent.
-//
-// Returns:
-// - True if the agreement was acknowledged, false otherwise.
-func sendAgreement(conn *net.UDPConn, numPackets int) (bool, error) {
+func handleAgreement(conn *net.UDPConn, numPackets int) (int, error) {
 	agreementPacket := []byte(fmt.Sprintf(AGREEMENT, numPackets))
-	ackReceived := false
 	retransmits := 0
 
-	for !ackReceived && retransmits < MAX_RETRANSMIT {
+	for retransmits < MAX_RETRANSMIT {
 		conn.Write(agreementPacket)
 
 		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
@@ -115,27 +105,16 @@ func sendAgreement(conn *net.UDPConn, numPackets int) (bool, error) {
 			continue
 		}
 
-		ack := string(buf[:n])
-		if ack == ACK_AGREEMENT {
-			ackReceived = true
-		}
-
-		if strings.HasPrefix(ack, "FAST_RECOVERY") {
-			ackReceived = true
+		ackAgreement := string(buf[:n])
+		if strings.HasPrefix(ackAgreement, "ACK_AGREEMENT") {
+			parts := strings.Split(ackAgreement, "|")
+			port, _ := strconv.Atoi(parts[1])
+			return port, nil
 		}
 	}
-
-	if !ackReceived {
-		return false, fmt.Errorf("failed to receive ACK")
-	}
-	return true, nil
+	return -1, fmt.Errorf("connection timed-out trying to send agreement")
 }
 
-// sendPackets transmits the sequence of data packets over the UDP connection.
-//
-// Parameters:
-// - conn: The UDP connection to send packets on.
-// - packets: A slice of byte slices, each containing a packet's data.
 func sendPackets(conn *net.UDPConn, packets [][]byte) error {
 	for i, packet := range packets {
 		packetWithSeq := fmt.Sprintf("%d|", i) + string(packet)
@@ -147,13 +126,6 @@ func sendPackets(conn *net.UDPConn, packets [][]byte) error {
 	return nil
 }
 
-// awaitAcknowledgment waits for an acknowledgment indicating all packets have
-// been received by the receiver. If a recovery request is received, retransmits
-// the requested packets.
-//
-// Parameters:
-// - conn: The UDP connection to receive acknowledgments and send recovery packets on.
-// - packets: The original sequence of packets sent.
 func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 	buf := make([]byte, 1024)
 
@@ -189,13 +161,6 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 	}
 }
 
-// retransmitPackets handles the retransmission of packets based on the type of recovery requested.
-//
-// Parameters:
-// - conn: The UDP connection to send retransmitted packets on.
-// - packets: A slice of byte slices, each containing a packet's data.
-// - startSeq: The sequence number to start retransmission from.
-// - fast: Indicates if fast recovery mode is used (retransmits all packets from startSeq).
 func retransmitPackets(conn *net.UDPConn, packets [][]byte, startSeq int, fast bool) error {
 	if fast {
 		// Fast recovery: retransmit all packets from startSeq onward

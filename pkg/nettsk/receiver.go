@@ -26,38 +26,94 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-// Receive listens for UDP packets on the specified port, handling
-// packet loss and retransmissions. Received data is sent through dataChannel,
-// and any errors are sent through errorChannel.
-//
-// Parameters:
-//   - port: The port to listen on for incoming UDP packets.
-//   - dataChannel: A channel where the reassembled message is sent upon successful reception.
-//   - errorChannel: A channel where errors are sent if transmission fails.
 func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
-	addr, _ := net.ResolveUDPAddr("udp", ":"+port)
-	conn, _ := net.ListenUDP("udp", addr)
-	defer conn.Close()
-
-	buf := make([]byte, 1024)
-
-	// Wait indefinitely for an initial agreement message
-	numPackets, clientAddr, err := establishAgreement(conn, buf)
+	mainAddr, err := net.ResolveUDPAddr("udp", ":"+port)
 	if err != nil {
-		errorChannel <- fmt.Errorf("failed to establish agreement")
+		fmt.Println("Error resolving main address:", err)
 		return
 	}
+
+	mainConn, err := net.ListenUDP("udp", mainAddr)
+	if err != nil {
+		fmt.Println("Error starting main UDP server:", err)
+		return
+	}
+	defer mainConn.Close()
+
+	fmt.Println("Server listening on main port...")
+
+	var mu sync.Mutex
+	clientPorts := make(map[string]int)
+
+	// Goroutine to handle each incoming client
+	for {
+		// Establish agreement
+		numPackets, clientAddr, err := establishAgreement(mainConn)
+		if err != nil {
+			fmt.Println("Error establishing agreement: ", err)
+		}
+		fmt.Printf("Received AGREEMENT from %s: numPackets = %d\n", clientAddr, numPackets)
+
+		// Check if the client is new
+		mu.Lock()
+		if _, exists := clientPorts[clientAddr.String()]; !exists {
+			newPort := 50000 + len(clientPorts) // Assign a new port dinamically
+			clientPorts[clientAddr.String()] = newPort
+
+			// Inform the client of the new port
+			_, err = mainConn.WriteToUDP([]byte(fmt.Sprintf(ACK_AGREEMENT, newPort)), clientAddr)
+			if err != nil {
+				fmt.Println("Error sending ACK_AGREEMENT to client:", err)
+				mu.Unlock()
+				continue
+			}
+
+			// Handle communication with the new client on the new port
+			go handleClient(clientAddr, newPort, dataChannel, errorChannel, numPackets)
+		}
+		mu.Unlock()
+	}
+}
+
+func establishAgreement(mainConn *net.UDPConn) (int, *net.UDPAddr, error) {
+	buffer := make([]byte, 1024)
+	n, clientAddr, err := mainConn.ReadFromUDP(buffer)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error reading from UDP: %v", err)
+	}
+
+	agreementMsg := string(buffer[:n])
+	if strings.HasPrefix(agreementMsg, "AGREEMENT") {
+		parts := strings.Split(agreementMsg, "|")
+		numPackets, _ := strconv.Atoi(parts[1])
+		return numPackets, clientAddr, nil
+	}
+	return 0, nil, fmt.Errorf("unrecognizable packet")
+}
+
+func handleClient(clientAddr *net.UDPAddr, port int, dataChannel chan<- []byte, errorChannel chan<- error, numPackets int) {
+	clientAddrPort, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		fmt.Println("Error resolving client address port:", err)
+		return
+	}
+
+	conn, err := net.ListenUDP("udp", clientAddrPort)
+	if err != nil {
+		fmt.Println("Error starting client UDP server on port", port, ":", err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Printf("Communicating with %s on port %d\n", clientAddr, port)
 
 	// Process packet reception with recovery mechanisms
 	receivedPackets := make(map[int][]byte)
-	expectedSeq, err := receivePackets(conn, clientAddr, numPackets, receivedPackets)
-	if err != nil {
-		errorChannel <- err
-		return
-	}
+	expectedSeq := receivePackets(conn, clientAddr, numPackets, receivedPackets)
 	if expectedSeq < numPackets {
 		// Handle any missing packets after initial reception
 		err = handleMissingPackets(conn, clientAddr, numPackets, receivedPackets)
@@ -71,46 +127,7 @@ func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) 
 	finalizeTransmission(conn, clientAddr, dataChannel, receivedPackets, numPackets)
 }
 
-// establishAgreement waits for an "AGREEMENT" message from the client to
-// determine the number of packets to be sent. It responds with ACK_AGREEMENT.
-//
-// Parameters:
-//   - conn: The UDP connection to listen on.
-//   - buf: A buffer to store received data.
-//
-// Returns:
-//   - int: The number of packets expected to receive.
-//   - *net.UDPAddr: The client address.
-//   - error: An error if the agreement cannot be established.
-func establishAgreement(conn *net.UDPConn, buf []byte) (int, *net.UDPAddr, error) {
-	for {
-		n, clientAddr, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			return 0, nil, fmt.Errorf("error reading from UDP: %v", err)
-		}
-
-		agreementMsg := string(buf[:n])
-		if strings.HasPrefix(agreementMsg, "AGREEMENT") {
-			parts := strings.Split(agreementMsg, "|")
-			numPackets, _ := strconv.Atoi(parts[1])
-			conn.WriteToUDP([]byte(ACK_AGREEMENT), clientAddr)
-			return numPackets, clientAddr, nil
-		}
-	}
-}
-
-// receivePackets handles the reception of UDP packets. If a packet timeout occurs,
-// it sends a FAST_RECOVERY request to re-transmit the missing packet.
-//
-// Parameters:
-//   - conn: The UDP connection for receiving packets.
-//   - clientAddr: The client's address.
-//   - numPackets: The total number of packets expected.
-//   - receivedPackets: A map to store received packets by sequence number.
-//
-// Returns:
-//   - int: The next expected sequence number, or an error if packet reception fails.
-func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) (int, error) {
+func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) int {
 	buf := make([]byte, 1024)
 	receivedSeq := -1
 	expectedSeq := 0
@@ -128,6 +145,7 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 
 		packet := string(buf[:n])
 		if strings.HasPrefix(packet, "AGREEMENT") {
+			// Send ack agreement again
 			continue
 		}
 		parts := strings.SplitN(packet, "|", 2)
@@ -143,10 +161,7 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 			receivedPackets[seqNum] = []byte(parts[1])
 		}
 	}
-	if receivedSeq < numPackets-1 {
-		return expectedSeq, fmt.Errorf("failed to receive all packets")
-	}
-	return expectedSeq, nil
+	return expectedSeq
 }
 
 // handleMissingPackets sends RECOVERY requests for any missing packets

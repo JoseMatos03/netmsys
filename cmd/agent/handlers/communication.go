@@ -37,11 +37,7 @@ func (a *Agent) ListenServer() {
 	errorChannel := make(chan error)
 
 	// Start receiving data on UDP port with Receive function
-	go func() {
-		for {
-			nettsk.Receive(a.UDPPort, dataChannel, errorChannel)
-		}
-	}()
+	go nettsk.Receive(a.UDPPort, dataChannel, errorChannel)
 
 	fmt.Println("Agent is listening for server messages on UDP port", a.UDPPort)
 

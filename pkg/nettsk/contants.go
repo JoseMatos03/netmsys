@@ -13,7 +13,7 @@ const (
 	AGREEMENT = "AGREEMENT|%d"
 
 	// ACK_AGREEMENT is sent to confirm initial agreement for packet transmission.
-	ACK_AGREEMENT = "ACK_AGREEMENT"
+	ACK_AGREEMENT = "ACK_AGREEMENT|%d"
 
 	// ACK_COMPLETE is sent to indicate successful completion of transmission.
 	ACK_COMPLETE = "ACK_COMPLETE"
@@ -22,8 +22,8 @@ const (
 	MAX_RETRANSMIT = 5
 
 	// TIMEOUT defines the duration to wait before declaring a packet timeout.
-	TIMEOUT = 1 * time.Second
+	TIMEOUT = 5 * time.Second
 
 	// MAX_PACKET_SIZE defines the maximum size of each packet that is sent.
-	MAX_PACKET_SIZE = 512
+	MAX_PACKET_SIZE = 1024
 )

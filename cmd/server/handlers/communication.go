@@ -59,7 +59,7 @@ func (s *Server) SendTask(taskID string) {
 		go func() {
 			err := nettsk.Send(targetAddr, "8080", []byte(message))
 			if err != nil {
-				fmt.Printf("communication.SendTask(): failed to send task.")
+				fmt.Println(err)
 				return
 			}
 			fmt.Printf("Task sent successfully.")
@@ -72,11 +72,7 @@ func (s *Server) ListenAgents() {
 	errorChannel := make(chan error)
 
 	// Start receiving data on UDP port
-	go func() {
-		for {
-			nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
-		}
-	}()
+	go nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
 
 	fmt.Printf("Listening for agent messages on UDP port: %s\n", s.UDPPort)
 
