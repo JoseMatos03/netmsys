@@ -1,0 +1,58 @@
+{
+  "task_id": "Agent1Task",
+  "frequency": 30,
+  "targets": [
+    "Agent1"
+  ],
+  "alertflow_conditions": {
+    "cpu_usage": 0,
+    "ram_usage": 0,
+    "packet_loss": 0,
+    "interface_stats": 0,
+    "jitter": 0
+  },
+  "monitor_options": {
+    "monitor_cpu": false,
+    "monitor_ram": false,
+    "interfaces": []
+  },
+  "device_options": [
+    {
+      "device_id": "Agent3",
+      "ip_address": "10.0.5.20",
+      "udp_port": "8080",
+      "tcp_port": "9090",
+      "link_options": {
+        "bandwidth": {
+          "protocol": "udp",
+          "duration": 10,
+          "client_port": 5001,
+          "parallel_streams": 2,
+          "interval": 1
+        },
+        "jitter": {
+          "protocol": "udp",
+          "bandwidth": "2M",
+          "duration": 10,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 2
+        },
+        "packet_loss": {
+          "protocol": "udp",
+          "bandwidth": "1M",
+          "duration": 10,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 1
+        },
+        "latency": {
+          "packet_count": 10,
+          "packet_size": 64,
+          "interval": 1,
+          "timeout": 5
+        }
+      }
+    }
+  ]
+}

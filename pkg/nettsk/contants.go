@@ -45,5 +45,5 @@ const (
 	TIMEOUT = 2 * time.Second
 
 	// MAX_PACKET_SIZE defines the maximum size of each packet that is sent.
-	MAX_PACKET_SIZE = 1024
+	MAX_PACKET_SIZE = 512
 )

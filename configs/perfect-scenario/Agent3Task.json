@@ -1,0 +1,63 @@
+{
+  "task_id": "t1",
+  "frequency": 60,
+  "targets": [
+    "PC2"
+  ],
+  "alertflow_conditions": {
+    "cpu_usage": 0.8,
+    "ram_usage": 0.9,
+    "packet_loss": 0.5,
+    "interface_stats": 2000,
+    "jitter": 100
+  },
+  "monitor_options": {
+    "monitor_cpu": true,
+    "monitor_ram": true,
+    "interfaces": [
+      {
+        "name": "eth0",
+        "ip": "10.0.5.10"
+      }
+    ]
+  },
+  "device_options": [
+    {
+      "device_id": "PC3",
+      "ip_address": "10.0.6.10",
+      "udp_port": "8080",
+      "tcp_port": "9090",
+      "link_options": {
+        "bandwidth": {
+          "protocol": "udp",
+          "duration": 10,
+          "client_port": 5001,
+          "parallel_streams": 5,
+          "interval": 1
+        },
+        "jitter": {
+          "protocol": "udp",
+          "bandwidth": "10M",
+          "duration": 10,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 1
+        },
+        "packet_loss": {
+          "protocol": "udp",
+          "bandwidth": "5M",
+          "duration": 10,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 1
+        },
+        "latency": {
+          "packet_count": 10,
+          "packet_size": 64,
+          "interval": 1,
+          "timeout": 5
+        }
+      }
+    }
+  ]
+}
