@@ -1,0 +1,5 @@
+{
+    "task_id": "001",
+    "task_type": "monitor",
+    "payload": "Disk Usage"
+  }
