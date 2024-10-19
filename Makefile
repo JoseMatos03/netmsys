@@ -8,7 +8,15 @@ GO_FILES = $(shell find . -name '*.go')
 BINS = $(patsubst ./%.go,$(BUILD_DIR)/%,$(GO_FILES))
 
 # Default target
-all: $(BINS)
+all: fmtcheck importscheck $(BINS)
+
+# Formatting check
+fmtcheck:
+	@scripts/gofmtcheck.sh
+
+# Goimports check
+importscheck:
+	@scripts/goimportscheck.sh
 
 # Rule to compile Go files into binaries
 $(BUILD_DIR)/%: %.go
@@ -19,4 +27,8 @@ $(BUILD_DIR)/%: %.go
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean
+# Probably not needed in this applications' current state, but we've decided to
+# be better safe than sorry and disable parallelism altogether.
+.NOTPARALLEL:
+
+.PHONY: all clean fmtcheck importscheck
