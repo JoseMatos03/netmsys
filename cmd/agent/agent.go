@@ -2,21 +2,26 @@ package main
 
 import (
 	"fmt"
+	"netmsys/pkg/alrtflw"
 	"netmsys/pkg/nettsk"
 	"os"
 )
 
 func main() {
-	// Check if the server address argument is provided
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: agent <server-address>")
-		os.Exit(1)
+	// Get server address from command line argument
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: ./agent <UDP server address> <TCP server address>")
+		return
 	}
 
-	// Get the server address from the arguments
-	serverAddress := os.Args[1]
+	udpServerAddr := os.Args[1]
+	tcpServerAddr := os.Args[2]
 
-	fmt.Println("Agent is sending a message to", serverAddress)
-	// Sending message to the server at the provided address
-	nettsk.Send("Hello from Agent", serverAddress)
+	// Sending a message using the Nettsk (UDP) protocol
+	fmt.Println("Agent is sending a UDP message to", udpServerAddr)
+	nettsk.Send("Hello from Agent via UDP", udpServerAddr)
+
+	// Sending a message using the AlertFlow (TCP) protocol
+	fmt.Println("Agent is sending a TCP message to", tcpServerAddr)
+	alrtflw.Send("Hello from Agent via TCP", tcpServerAddr)
 }

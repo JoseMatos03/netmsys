@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"netmsys/pkg/alrtflw"
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
 	"os"
@@ -26,7 +27,18 @@ func main() {
 	// For now, just print the parsed data
 	fmt.Printf("Parsed Task Data: %+v\n", taskData)
 
-	// Open the connection for receiving packets
-	fmt.Println("Server is waiting for messages...")
-	nettsk.Receive("8080")
+	// Start receiving UDP messages (Nettsk protocol)
+	go func() {
+		fmt.Println("Server is listening for UDP messages on 8080")
+		nettsk.Receive("8080")
+	}()
+
+	// Start receiving TCP messages (AlertFlow protocol)
+	go func() {
+		fmt.Println("Server is listening for TCP messages on 9090")
+		alrtflw.Receive("9090")
+	}()
+
+	// Keep the server running
+	select {} // Block forever to keep both listeners alive
 }
