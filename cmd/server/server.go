@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"netmsys/pkg/alrtflw"
 	"netmsys/pkg/nettsk"
-	"netmsys/tools/parsers"
 	"os"
 )
 
@@ -15,17 +14,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jsonFile := os.Args[1]
-
-	// Use the parser to read and parse the JSON file
-	taskData, err := parsers.ReadAndParseJSON(jsonFile)
-	if err != nil {
-		fmt.Println("Error reading or parsing JSON:", err)
-		os.Exit(1)
-	}
-
-	// For now, just print the parsed data
-	fmt.Printf("Parsed Task Data: %+v\n", taskData)
+	// jsonFile := os.Args[1]
 
 	// Start receiving UDP messages (Nettsk protocol)
 	go func() {
