@@ -16,4 +16,27 @@
 //
 // ---------------------------------------------------------------------------------
 
-package message
+package handlers
+
+import (
+	"fmt"
+	"net"
+)
+
+// Get the first non-loopback IP address of the host
+func GetLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				return ipNet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no non-loopback IP address found")
+}
