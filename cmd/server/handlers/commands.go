@@ -85,7 +85,7 @@ func QuitCommand() {
 // printGeneralHelp displays a general help message
 func printGeneralHelp() {
 	fmt.Println("Available commands:")
-	fmt.Println("  load_task <json-file>  - Load a task from the specified JSON file")
+	fmt.Println("  send <json-file>       - Send a task from the specified JSON file")
 	fmt.Println("  quit                   - Quit the server")
 	fmt.Println("  help                   - Show general help information")
 	fmt.Println("  help <command_name>    - Show specific help for a command")
@@ -95,8 +95,8 @@ func printGeneralHelp() {
 func printCommandHelp(command string) {
 	switch command {
 	case "load_task":
-		fmt.Println("Usage: load_task <json-file>")
-		fmt.Println("Description: Loads a task from the specified JSON file and processes it.")
+		fmt.Println("Usage: send <json-file>")
+		fmt.Println("Description: Sends a task from the specified JSON file to its targets.")
 	case "quit":
 		fmt.Println("Usage: quit")
 		fmt.Println("Description: Shuts down the server and exits the program.")
