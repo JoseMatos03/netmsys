@@ -16,13 +16,4 @@
 //
 // ---------------------------------------------------------------------------------
 
-package main
-
-import (
-	"netmsys/cmd/agent/handlers"
-	"os"
-)
-
-func main() {
-	handlers.Start(os.Args)
-}
+package handlers

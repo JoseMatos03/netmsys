@@ -16,13 +16,43 @@
 //
 // ---------------------------------------------------------------------------------
 
-package main
+package handlers
 
 import (
-	"netmsys/cmd/agent/handlers"
+	"bufio"
+	"fmt"
 	"os"
+	"strings"
 )
 
-func main() {
-	handlers.Start(os.Args)
+// CommandLineInterface runs an infinite loop to handle user commands.
+func CommandLineInterface() {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print("> ") // Command-line prompt
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			continue
+		}
+
+		// Trim the input to avoid issues with newlines
+		command := strings.TrimSpace(input)
+
+		// Handle commands
+		switch {
+		case strings.HasPrefix(command, "send"):
+			SendCommand(command)
+
+		case strings.HasPrefix(command, "help"):
+			HelpCommand(command)
+
+		case command == "quit":
+			QuitCommand()
+
+		default:
+			fmt.Println("Unknown command. Available commands: load_task <json-file>, quit")
+		}
+	}
 }

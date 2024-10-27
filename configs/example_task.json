@@ -1,5 +1,69 @@
 {
-    "task_id": "001",
-    "task_type": "monitor",
-    "payload": "Disk Usage"
-  }
+  "task_id": "t_001",
+  "frequency": 20,
+  "targets": [
+    {
+      "target_id": "d_004",
+      "ip_address": "192.168.1.136",
+      "udp_port": "8080",
+      "tcp_port": "9090"
+    }
+  ],
+  "device_options": [
+    {
+      "device_id": "d_001",
+      "ip_address": "192.168.1.102",
+      "udp_port": "8080",
+      "tcp_port": "9090",
+      "monitor_options": {
+        "monitor_cpu": true,
+        "monitor_ram": false,
+        "intercaces": [
+          "eth0",
+          "eth1",
+          "eth2"
+        ]
+      },
+      "link_options": {
+        "bandwidth": {
+          "bandwidth": {
+            "protocol": "tcp",
+            "duration": 60,
+            "client_port": 5001,
+            "parallel_streams": 5,
+            "interval": 1
+          }
+        },
+        "jitter": {
+          "protocol": "udp",
+          "bandwidth": "10M",
+          "duration": 30,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 1
+        },
+        "packet_loss": {
+          "protocol": "udp",
+          "bandwidth": "5M",
+          "duration": 60,
+          "client_port": 5001,
+          "packet_size": 1470,
+          "interval": 1
+        },
+        "latency": {
+          "packet_count": 10,
+          "packet_size": 64,
+          "interval": 1,
+          "timeout": 5
+        }
+      },
+      "alertflow_conditions": {
+        "cpu_usage": 0.8,
+        "ram_usage": 0.9,
+        "packet_loss": 0.5,
+        "interface_stats": 2000,
+        "jitter": 100
+      }
+    }
+  ]
+}
