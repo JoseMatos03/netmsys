@@ -19,10 +19,18 @@
 package main
 
 import (
+	"fmt"
 	"netmsys/cmd/agent/handlers"
 	"os"
 )
 
 func main() {
-	handlers.Start(os.Args)
+	agent, err := handlers.NewAgent(os.Args)
+	if err != nil {
+		fmt.Println("Usage: ./agent <Agent ID> <Server IP> <UDP Port> <TCP Port>")
+		os.Exit(1)
+	}
+
+	agent.Start()
+	agent.StartInterface()
 }
