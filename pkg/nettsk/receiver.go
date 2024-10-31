@@ -21,36 +21,38 @@ package nettsk
 import (
 	"fmt"
 	"net"
-	"os"
 )
 
 // Receive function listens on a given UDP port and prints received messages
-func Receive(port string) {
+func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	// Resolve the UDP address to listen on
 	udpAddr, err := net.ResolveUDPAddr("udp", ":"+port)
 	if err != nil {
-		fmt.Println("Error resolving address:", err)
-		os.Exit(1)
+		errorChannel <- fmt.Errorf("error resolving address: %w", err)
+		return
 	}
 
 	// Create a UDP socket to listen
 	conn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		fmt.Println("Error setting up UDP listener:", err)
-		os.Exit(1)
+		errorChannel <- fmt.Errorf("error setting up UDP listener: %w", err)
+		return
 	}
 	defer conn.Close()
 
 	buffer := make([]byte, 1024)
 
-	// Read incoming messages
+	// Continuous loop to receive messages
 	for {
 		n, addr, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
+			errorChannel <- fmt.Errorf("error reading from UDP: %w", err)
 			continue
 		}
 
-		fmt.Printf("Received message from %s: %s\n", addr.String(), string(buffer[:n]))
+		fmt.Printf("Received message from %s\n", addr.String())
+
+		// Send received data to the channel
+		dataChannel <- buffer[:n]
 	}
 }
