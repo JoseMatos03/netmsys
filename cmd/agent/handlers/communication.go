@@ -18,7 +18,25 @@
 
 package handlers
 
-func (agent *Agent) Start() error {
+import (
+	"fmt"
+	"netmsys/pkg/nettsk"
+)
 
-	return nil
+func (agent *Agent) Start() {
+	dataChannel := make(chan []byte)
+	errorChannel := make(chan error)
+	go func() {
+		for {
+			nettsk.Receive(agent.UDPPort, dataChannel, errorChannel)
+		}
+	}()
+	for {
+		select {
+		case data := <-dataChannel:
+			fmt.Printf("Client: Received task data:\n%s\n", string(data))
+		case err := <-errorChannel:
+			fmt.Printf("Client: Error receiving data: %v\n", err)
+		}
+	}
 }

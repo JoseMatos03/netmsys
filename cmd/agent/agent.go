@@ -32,5 +32,4 @@ func main() {
 	}
 
 	agent.Start()
-	agent.StartInterface()
 }

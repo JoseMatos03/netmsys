@@ -22,7 +22,7 @@ import "fmt"
 // Agent represents the agent's information
 type Agent struct {
 	ID         string
-	TaskID     string
+	TaskIDs    []string
 	ServerAddr string
 	UDPPort    string
 	TCPPort    string
@@ -31,19 +31,19 @@ type Agent struct {
 func NewAgent(args []string) (*Agent, error) {
 	// Check if enough arguments are provided
 	if len(args) < 4 {
-		return nil, fmt.Errorf("Insufficient arguments: ./agent <Agent ID> <Server IP> <UDP port> <TCP port>")
+		return nil, fmt.Errorf("insufficient arguments: ./agent <Agent ID> <Server IP> <UDP port> <TCP port>")
 	}
 
 	agentID := args[1]
+	agentTaskIDs := make([]string, 10)
 	agentServer := args[2]
 	agentUDP := args[3]
 	agentTCP := args[4]
 	return &Agent{
 		ID:         agentID,
-		TaskID:     "",
+		TaskIDs:    agentTaskIDs,
 		ServerAddr: agentServer,
 		UDPPort:    agentUDP,
 		TCPPort:    agentTCP,
 	}, nil
 }
-

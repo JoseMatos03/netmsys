@@ -4,7 +4,7 @@
   "targets": [
     {
       "target_id": "d_004",
-      "ip_address": "10.211.55.11",
+      "ip_address": "10.0.0.20",
       "udp_port": "8080",
       "tcp_port": "9090"
     }
