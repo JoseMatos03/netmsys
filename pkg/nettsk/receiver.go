@@ -262,7 +262,6 @@ func identifyMissingPackets(packets map[int][]byte, total int) []int {
 	return missing
 }
 
-
 // reassembleMessage reconstructs the full message from received packets.
 //
 // Parameters:

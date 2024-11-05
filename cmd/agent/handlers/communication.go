@@ -20,23 +20,60 @@ package handlers
 
 import (
 	"fmt"
+	"netmsys/cmd/message"
 	"netmsys/pkg/nettsk"
+	"netmsys/tools/parsers"
+	"strings"
 )
 
-func (agent *Agent) Start() {
+func (a *Agent) Register() {
+	registerMessage := "REGISTER|" + a.ID
+	nettsk.Send(a.ServerAddr, a.UDPPort, []byte(registerMessage))
+}
+
+func (a *Agent) ListenServer() {
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
+
+	// Start receiving data on UDP port with Receive function
 	go func() {
 		for {
-			nettsk.Receive(agent.UDPPort, dataChannel, errorChannel)
+			nettsk.Receive(a.UDPPort, dataChannel, errorChannel)
 		}
 	}()
+
+	fmt.Println("Agent is listening for server messages on UDP port", a.UDPPort)
+
 	for {
 		select {
 		case data := <-dataChannel:
-			fmt.Printf("Client: Received task data:\n%s\n", string(data))
+			// Process received data
+			a.handleServerMessage(data)
 		case err := <-errorChannel:
-			fmt.Printf("Client: Error receiving data: %v\n", err)
+			// Handle any errors reported by Receive
+			fmt.Println("Error receiving data:", err)
 		}
 	}
+}
+
+func (a *Agent) handleServerMessage(data []byte) {
+	message := string(data)
+	if strings.HasPrefix(message, "TASK|") {
+		serializedTask := strings.TrimPrefix(message, "TASK|")
+		a.registerTask([]byte(serializedTask))
+	}
+}
+
+func (a *Agent) registerTask(serializedTask []byte) {
+	var newTask message.Task
+	parsers.DeserializeJSON(serializedTask, newTask)
+
+	for _, task := range a.Tasks {
+		if task.TaskID == newTask.TaskID {
+			fmt.Println("Task", task.TaskID, "is already registered.")
+			return
+		}
+	}
+	a.Tasks = append(a.Tasks, newTask)
+	fmt.Println("Registered new task:", newTask.TaskID)
 }

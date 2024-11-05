@@ -19,12 +19,20 @@
 package main
 
 import (
+	"fmt"
 	"netmsys/cmd/server/handlers"
+	"os"
 )
 
 func main() {
-	// Call the command-line interface to handle user commands
-	handlers.CommandLineInterface()
+	server, err := handlers.NewServer(os.Args)
+	if err != nil {
+		fmt.Println("Usage: ./server <UDP Port> <TCP Port>")
+		os.Exit(1)
+	}
+
+	go server.ListenAgents()
+	server.StartCLI()
 
 	// The program will continue running until the user enters the "quit" command
 }

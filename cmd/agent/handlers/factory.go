@@ -17,12 +17,15 @@
 // ---------------------------------------------------------------------------------
 package handlers
 
-import "fmt"
+import (
+	"fmt"
+	"netmsys/cmd/message"
+)
 
 // Agent represents the agent's information
 type Agent struct {
 	ID         string
-	TaskIDs    []string
+	Tasks      []message.Task
 	ServerAddr string
 	UDPPort    string
 	TCPPort    string
@@ -35,13 +38,12 @@ func NewAgent(args []string) (*Agent, error) {
 	}
 
 	agentID := args[1]
-	agentTaskIDs := make([]string, 10)
 	agentServer := args[2]
 	agentUDP := args[3]
 	agentTCP := args[4]
 	return &Agent{
 		ID:         agentID,
-		TaskIDs:    agentTaskIDs,
+		Tasks:      make([]message.Task, 10),
 		ServerAddr: agentServer,
 		UDPPort:    agentUDP,
 		TCPPort:    agentTCP,

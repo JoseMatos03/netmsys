@@ -31,5 +31,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	agent.Start()
+	agent.Register()
+	agent.ListenServer()
 }
