@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"netmsys/cmd/agent/handlers"
 	"os"
+	"time"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	go agent.ListenServer()
 	agent.Register()
-	agent.ListenServer()
+	time.Sleep(5 * time.Second)
 }

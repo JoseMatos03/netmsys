@@ -20,9 +20,40 @@ package handlers
 
 import (
 	"fmt"
+	"netmsys/cmd/message"
 	"netmsys/pkg/nettsk"
+	"netmsys/tools/parsers"
 	"strings"
 )
+
+func (s *Server) SendTask(taskID string) {
+	// Find the task by ID
+	var task *message.Task
+	for i := range s.Tasks {
+		if s.Tasks[i].TaskID == taskID {
+			task = &s.Tasks[i]
+			break
+		}
+	}
+
+	// Check if the task was found
+	if task == nil {
+		fmt.Printf("Task with ID %s not found\n", taskID)
+		return
+	}
+
+	// Send task to each target
+	for _, targetID := range task.Targets {
+		targetAddr, exists := s.Agents[targetID]
+		if !exists {
+			continue
+		}
+
+		serializedTask, _ := parsers.SerializeJSON(task)
+		message := "TASK|" + string(serializedTask)
+		go nettsk.Send(targetAddr, "8080", []byte(message))
+	}
+}
 
 func (s *Server) ListenAgents() {
 	dataChannel := make(chan []byte)
@@ -53,24 +84,42 @@ func (s *Server) ListenAgents() {
 func (s *Server) handleAgentMessage(data []byte) {
 	message := string(data)
 	if strings.HasPrefix(message, "REGISTER|") {
-		// Extract client ID from message after "WAKE_UP|"
-		clientID := strings.TrimPrefix(message, "REGISTER|")
-		s.registerAgent(clientID)
-	}
-}
-
-// registerAgent adds a new agent to the list of agent IDs if not already registered.
-func (s *Server) registerAgent(agentID string) {
-	for _, id := range s.AgentIDs {
-		if id == agentID {
-			fmt.Println("Agent", agentID, "is already registered.")
+		registrationData := strings.TrimPrefix(message, "REGISTER|")
+		parts := strings.Split(registrationData, ":")
+		if len(parts) != 2 {
+			fmt.Println("Invalid registration message format:", message)
 			return
 		}
+
+		clientID := parts[0]
+		clientIP := parts[1]
+
+		// Register agent with parsed ID and IP address
+		s.registerAgent(clientID, clientIP)
 	}
-	s.AgentIDs = append(s.AgentIDs, agentID)
-	fmt.Println("Registered new agent:", agentID)
 }
 
-func (s *Server) sendTasks() {
+// registerAgent adds the agent to the map of AgentIDs if not already registered.
+func (s *Server) registerAgent(agentID, ipAddr string) {
+	// Check if agent is already registered
+	if _, exists := s.Agents[agentID]; exists {
+		fmt.Println("Agent", agentID, "is already registered.")
+		return
+	}
 
+	// Register the agent
+	s.Agents[agentID] = ipAddr
+	fmt.Printf("Registered new agent: ID=%s, IP=%s\n", agentID, ipAddr)
+
+	// Loop through tasks and send those that target this agent
+	for _, task := range s.Tasks {
+		// Check if this task targets the newly registered agent
+		for _, targetID := range task.Targets {
+			if targetID == agentID {
+				fmt.Printf("Sending task %s to newly registered agent %s\n", task.TaskID, agentID)
+				s.SendTask(task.TaskID)
+				break
+			}
+		}
+	}
 }

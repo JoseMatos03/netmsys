@@ -27,7 +27,7 @@ import (
 )
 
 func (a *Agent) Register() {
-	registerMessage := "REGISTER|" + a.ID
+	registerMessage := "REGISTER|" + a.ID + ":" + a.IPAddr
 	nettsk.Send(a.ServerAddr, a.UDPPort, []byte(registerMessage))
 }
 
@@ -59,21 +59,18 @@ func (a *Agent) ListenServer() {
 func (a *Agent) handleServerMessage(data []byte) {
 	message := string(data)
 	if strings.HasPrefix(message, "TASK|") {
-		serializedTask := strings.TrimPrefix(message, "TASK|")
-		a.registerTask([]byte(serializedTask))
+		task := strings.TrimPrefix(message, "TASK|")
+		a.registerTask(task)
 	}
 }
 
-func (a *Agent) registerTask(serializedTask []byte) {
+func (a *Agent) registerTask(task string) {
 	var newTask message.Task
-	parsers.DeserializeJSON(serializedTask, newTask)
-
-	for _, task := range a.Tasks {
-		if task.TaskID == newTask.TaskID {
-			fmt.Println("Task", task.TaskID, "is already registered.")
-			return
-		}
+	err := parsers.DeserializeJSON([]byte(task), &newTask)
+	if err != nil {
+		fmt.Println("Couldn't register task!")
 	}
+
 	a.Tasks = append(a.Tasks, newTask)
 	fmt.Println("Registered new task:", newTask.TaskID)
 }

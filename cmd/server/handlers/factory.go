@@ -6,10 +6,10 @@ import (
 )
 
 type Server struct {
-	UDPPort  string
-	TCPPort  string
-	AgentIDs []string
-	Tasks    []message.Task
+	UDPPort string
+	TCPPort string
+	Agents  map[string]string
+	Tasks   []message.Task
 }
 
 func NewServer(args []string) (*Server, error) {
@@ -21,9 +21,9 @@ func NewServer(args []string) (*Server, error) {
 	serverUDP := args[1]
 	serverTCP := args[2]
 	return &Server{
-		UDPPort:  serverUDP,
-		TCPPort:  serverTCP,
-		AgentIDs: make([]string, 10),
-		Tasks:    make([]message.Task, 10),
+		UDPPort: serverUDP,
+		TCPPort: serverTCP,
+		Agents:  make(map[string]string),
+		Tasks:   []message.Task{},
 	}, nil
 }

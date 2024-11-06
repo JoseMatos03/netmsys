@@ -19,14 +19,9 @@
 package message
 
 type Task struct {
-	TaskID    string `json:"task_id"`
-	Frequency int    `json:"frequency"`
-	Targets   []struct {
-		TargetID  string `json:"target_id"`
-		IPAddress string `json:"ip_address"`
-		UDPPort   string `json:"udp_port"`
-		TCPPort   string `json:"tcp_port"`
-	} `json:"targets"`
+	TaskID        string   `json:"task_id"`
+	Frequency     int      `json:"frequency"`
+	Targets       []string `json:"targets"`
 	DeviceOptions []struct {
 		DeviceID       string `json:"device_id"`
 		IPAddress      string `json:"ip_address"`

@@ -22,14 +22,13 @@ import (
 	"bufio"
 	"fmt"
 	"netmsys/cmd/message"
-	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
 	"os"
 	"strings"
 )
 
 // CommandLineInterface runs an infinite loop to handle user commands.
-func (server *Server) StartCLI() {
+func (s *Server) StartCLI() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -45,14 +44,14 @@ func (server *Server) StartCLI() {
 
 		// Handle commands
 		switch {
-		case strings.HasPrefix(command, "send"):
-			sendCommand(command)
+		case strings.HasPrefix(command, "load"):
+			s.loadCommand(command)
 
 		case strings.HasPrefix(command, "help"):
-			helpCommand(command)
+			s.helpCommand(command)
 
 		case command == "quit":
-			quitCommand()
+			s.quitCommand()
 
 		default:
 			fmt.Println("Unknown command. Available commands: load_task <json-file>, quit")
@@ -60,18 +59,18 @@ func (server *Server) StartCLI() {
 	}
 }
 
-func sendCommand(command string) {
+func (s *Server) loadCommand(command string) {
 	// Extract the path to the JSON file from the command
 	// Assuming the format is "send <path-to-json>"
 	commandParts := strings.Split(command, " ")
 	if len(commandParts) < 2 {
-		fmt.Println("Invalid command format. Usage: send <path-to-json>")
+		fmt.Println("Invalid command format. Usage: load <path-to-json>")
 		return
 	}
 
 	jsonFile := commandParts[1]
 
-	// Step 1: Read the JSON file into a Task struct
+	// Read the JSON file into a Task struct
 	var task message.Task
 	err := parsers.ReadJSONFile(jsonFile, &task)
 	if err != nil {
@@ -79,27 +78,11 @@ func sendCommand(command string) {
 		return
 	}
 
-	// Step 2: Analyze the targets (assuming Task struct has a 'Targets' field)
-	if len(task.Targets) == 0 {
-		fmt.Println("No targets specified in the task.")
-		return
-	}
-
-	// Step 3: Serialize the task into JSON bytes
-	taskData, err := parsers.SerializeJSON(task)
-	if err != nil {
-		fmt.Printf("Failed to serialize task: %v\n", err)
-		return
-	}
-
-	// Step 4: Send the serialized task to each target via the Nettsk protocol
-	for _, target := range task.Targets {
-		fmt.Printf("Sending task to target %s via Nettsk...\n", target)
-		go nettsk.Send(target.IPAddress, target.UDPPort, taskData)
-	}
+	s.Tasks = append(s.Tasks, task)
+	fmt.Printf("Loaded task %s and stored it in the server's task list.\n", task.TaskID)
 }
 
-func helpCommand(command string) {
+func (s *Server) helpCommand(command string) {
 	helpArgs := strings.Split(command, " ")
 	if len(helpArgs) == 1 {
 		printGeneralHelp()
@@ -110,7 +93,7 @@ func helpCommand(command string) {
 	}
 }
 
-func quitCommand() {
+func (s *Server) quitCommand() {
 	fmt.Println("Shutting down server...")
 	os.Exit(0)
 }
