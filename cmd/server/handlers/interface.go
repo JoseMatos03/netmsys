@@ -35,17 +35,17 @@ func (s *Server) StartCLI() {
 		fmt.Print("> ") // Command-line prompt
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading input:", err)
 			continue
 		}
 
 		// Trim the input to avoid issues with newlines
 		command := strings.TrimSpace(input)
+		var commErr error
 
 		// Handle commands
 		switch {
 		case strings.HasPrefix(command, "load"):
-			s.loadCommand(command)
+			commErr = s.loadCommand(command)
 
 		case strings.HasPrefix(command, "help"):
 			s.helpCommand(command)
@@ -56,16 +56,19 @@ func (s *Server) StartCLI() {
 		default:
 			fmt.Println("Unknown command. Available commands: load_task <json-file>, quit")
 		}
+
+		if commErr != nil {
+			fmt.Printf("interface.StartCLI(): Error executing command.\n%v\n", commErr)
+		}
 	}
 }
 
-func (s *Server) loadCommand(command string) {
+func (s *Server) loadCommand(command string) error {
 	// Extract the path to the JSON file from the command
 	// Assuming the format is "send <path-to-json>"
 	commandParts := strings.Split(command, " ")
 	if len(commandParts) < 2 {
-		fmt.Println("Invalid command format. Usage: load <path-to-json>")
-		return
+		return fmt.Errorf("invalid command format. Usage: load <path-to-json>")
 	}
 
 	jsonFile := commandParts[1]
@@ -74,12 +77,12 @@ func (s *Server) loadCommand(command string) {
 	var task message.Task
 	err := parsers.ReadJSONFile(jsonFile, &task)
 	if err != nil {
-		fmt.Printf("Failed to read task JSON file: %v\n", err)
-		return
+		return fmt.Errorf("failed to read task JSON file")
 	}
 
 	s.Tasks = append(s.Tasks, task)
-	fmt.Printf("Loaded task %s and stored it in the server's task list.\n", task.TaskID)
+	fmt.Printf("Loaded task %s.\n", task.TaskID)
+	return nil
 }
 
 func (s *Server) helpCommand(command string) {

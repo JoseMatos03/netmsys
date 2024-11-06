@@ -48,28 +48,34 @@ const (
 // - addr: The IP address to send data to.
 // - port: The port number to use for sending data.
 // - data: The data to be sent.
-func Send(addr string, port string, data []byte) {
+func Send(addr string, port string, data []byte) error {
 	// Resolve the UDP address to send to
 	udpAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
 	if err != nil {
-		fmt.Println("Error resolving address:", err)
-		return
+		return fmt.Errorf("error resolving address")
 	}
 
 	// Create a UDP connection
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
-		fmt.Println("Error dialing UDP:", err)
-		return
+		return fmt.Errorf("error dialing UDP")
 	}
 	defer conn.Close()
 
 	numPackets, packets := calculatePackets(data)
 
-	if sendAgreement(conn, numPackets) {
-		sendPackets(conn, packets)
-		awaitAcknowledgment(conn, packets)
+	succ, err := sendAgreement(conn, numPackets)
+	if succ {
+		err = sendPackets(conn, packets)
+		if err != nil {
+			return err
+		}
+		err = awaitAcknowledgment(conn, packets)
+		if err != nil {
+			return err
+		}
 	}
+	return err
 }
 
 // calculatePackets splits the input data into multiple packets based on MaxPacketSize.
@@ -104,41 +110,36 @@ func calculatePackets(data []byte) (int, [][]byte) {
 //
 // Returns:
 // - True if the agreement was acknowledged, false otherwise.
-func sendAgreement(conn *net.UDPConn, numPackets int) bool {
+func sendAgreement(conn *net.UDPConn, numPackets int) (bool, error) {
 	agreementPacket := []byte(fmt.Sprintf(Agreement, numPackets))
 	ackReceived := false
 	retransmits := 0
 
 	for !ackReceived && retransmits < MaxRetransmits {
 		conn.Write(agreementPacket)
-		fmt.Printf("Sent agreement packet, expecting to send %d packets.\n", numPackets)
 
 		conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
 		buf := make([]byte, 1024)
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			fmt.Printf("Timeout waiting for ACK. Retransmitting (%d/%d)\n", retransmits+1, MaxRetransmits)
 			retransmits++
 			continue
 		}
 
 		ack := string(buf[:n])
 		if ack == AckAgreement {
-			fmt.Println("Received ACK for agreement. Sending all packets.")
 			ackReceived = true
 		}
 
 		if strings.HasPrefix(ack, "FAST_RECOVERY") {
-			fmt.Println("Received FAST_RECOVERY for agreement. Sending all packets.")
 			ackReceived = true
 		}
 	}
 
 	if !ackReceived {
-		fmt.Println("Failed to receive ACK after 3 attempts. Terminating connection.")
-		return false
+		return false, fmt.Errorf("failed to receive ACK")
 	}
-	return true
+	return true, nil
 }
 
 // sendPackets transmits the sequence of data packets over the UDP connection.
@@ -146,12 +147,15 @@ func sendAgreement(conn *net.UDPConn, numPackets int) bool {
 // Parameters:
 // - conn: The UDP connection to send packets on.
 // - packets: A slice of byte slices, each containing a packet's data.
-func sendPackets(conn *net.UDPConn, packets [][]byte) {
+func sendPackets(conn *net.UDPConn, packets [][]byte) error {
 	for i, packet := range packets {
 		packetWithSeq := fmt.Sprintf("%d|", i) + string(packet)
-		conn.Write([]byte(packetWithSeq))
-		fmt.Printf("Sent packet %d/%d\n", i+1, len(packets))
+		_, err := conn.Write([]byte(packetWithSeq))
+		if err != nil {
+			return fmt.Errorf("failed to send packets")
+		}
 	}
+	return nil
 }
 
 // awaitAcknowledgment waits for an acknowledgment indicating all packets have
@@ -161,35 +165,37 @@ func sendPackets(conn *net.UDPConn, packets [][]byte) {
 // Parameters:
 // - conn: The UDP connection to receive acknowledgments and send recovery packets on.
 // - packets: The original sequence of packets sent.
-func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) {
+func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 	buf := make([]byte, 1024)
 
 	for {
 		conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			fmt.Println("Timeout waiting for ACK. Assuming successful transmission.")
-			return
+			return fmt.Errorf("timeout waiting for ACK. assuming successful transmission")
 		}
 
 		ack := string(buf[:n])
 		if ack == AckComplete {
-			fmt.Println("Received ACK_COMPLETE, all packets delivered.")
-			return
+			return nil
 		}
 
 		if strings.HasPrefix(ack, "RECOVERY") {
 			parts := strings.Split(ack, "|")
 			recoverySeq, _ := strconv.Atoi(parts[1])
-			fmt.Printf("Received RECOVERY ACK for packet %d. Retransmitting missing packet.\n", recoverySeq)
-			retransmitPackets(conn, packets, recoverySeq, false) // false indicates normal recovery
+			err := retransmitPackets(conn, packets, recoverySeq, false) // false indicates normal recovery
+			if err != nil {
+				return err
+			}
 		}
 
 		if strings.HasPrefix(ack, "FAST_RECOVERY") {
 			parts := strings.Split(ack, "|")
 			recoverySeq, _ := strconv.Atoi(parts[1])
-			fmt.Printf("Received FAST_RECOVERY for packet %d. Retransmitting from that sequence.\n", recoverySeq)
-			retransmitPackets(conn, packets, recoverySeq, true) // true indicates fast recovery
+			err := retransmitPackets(conn, packets, recoverySeq, true) // true indicates fast recovery
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -201,18 +207,24 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) {
 // - packets: A slice of byte slices, each containing a packet's data.
 // - startSeq: The sequence number to start retransmission from.
 // - fast: Indicates if fast recovery mode is used (retransmits all packets from startSeq).
-func retransmitPackets(conn *net.UDPConn, packets [][]byte, startSeq int, fast bool) {
+func retransmitPackets(conn *net.UDPConn, packets [][]byte, startSeq int, fast bool) error {
 	if fast {
 		// Fast recovery: retransmit all packets from startSeq onward
 		for i := startSeq; i < len(packets); i++ {
 			packetWithSeq := fmt.Sprintf("%d|", i) + string(packets[i])
-			conn.Write([]byte(packetWithSeq))
-			fmt.Printf("Retransmitted packet %d/%d (Fast Recovery)\n", i+1, len(packets))
+			_, err := conn.Write([]byte(packetWithSeq))
+			if err != nil {
+				return fmt.Errorf("failed to retransmit with FAST_RECOVERY")
+			}
 		}
 	} else {
 		// Normal recovery: retransmit only the missing packet
 		packetWithSeq := fmt.Sprintf("%d|", startSeq) + string(packets[startSeq])
-		conn.Write([]byte(packetWithSeq))
-		fmt.Printf("Retransmitted missing packet %d (Normal Recovery)\n", startSeq)
+		_, err := conn.Write([]byte(packetWithSeq))
+		if err != nil {
+			return fmt.Errorf("failed to retransmit with RECOVERY")
+		}
 	}
+
+	return nil
 }

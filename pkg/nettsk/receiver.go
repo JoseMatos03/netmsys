@@ -67,7 +67,7 @@ func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) 
 	// Wait indefinitely for an initial agreement message
 	numPackets, clientAddr, err := establishAgreement(conn, buf)
 	if err != nil {
-		fmt.Println("Failed to establish agreement:", err)
+		errorChannel <- fmt.Errorf("failed to establish agreement")
 		return
 	}
 
@@ -141,7 +141,6 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 		n, _, err := conn.ReadFromUDP(buf)
 
 		if err != nil { // Timeout occurred
-			fmt.Printf("Timeout at packet %d. Sending FAST_RECOVERY.\n", expectedSeq)
 			conn.WriteToUDP([]byte(fmt.Sprintf(FAST_RECOVERY, expectedSeq)), clientAddr)
 			retransmitCount++
 			continue
@@ -159,11 +158,9 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 			receivedSeq = seqNum
 			expectedSeq++
 			retransmitCount = 0
-			fmt.Printf("Received in-order packet %d/%d\n", seqNum+1, numPackets)
 		} else if seqNum > expectedSeq {
 			receivedSeq = seqNum
 			receivedPackets[seqNum] = []byte(parts[1])
-			fmt.Printf("Out-of-order packet %d received. Expecting %d.\n", seqNum, expectedSeq)
 		}
 	}
 	if receivedSeq < numPackets-1 {
@@ -186,7 +183,6 @@ func receivePackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, 
 func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets int, receivedPackets map[int][]byte) error {
 	missingPackets := identifyMissingPackets(receivedPackets, numPackets)
 	if len(missingPackets) > 0 {
-		fmt.Println("Missing packets detected. Sending RECOVERY requests.")
 
 		for _, missingSeq := range missingPackets {
 			retries := 0
@@ -195,7 +191,6 @@ func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets
 			for !packetReceived && retries < MaxRetransmits {
 				// Send RECOVERY request for the missing packet
 				conn.WriteToUDP([]byte(fmt.Sprintf(Recovery, missingSeq)), clientAddr)
-				fmt.Printf("Sent RECOVERY request for packet %d (Attempt %d/%d)\n", missingSeq, retries+1, MaxRetransmits)
 
 				// Set a read deadline for the response
 				conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
@@ -206,10 +201,8 @@ func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets
 				if err == nil {
 					receivedPackets[missingSeq] = buf[:n]
 					packetReceived = true
-					fmt.Printf("Successfully received missing packet %d\n", missingSeq)
 				} else {
 					// Timeout or other error, increase retry count
-					fmt.Printf("Timeout waiting for missing packet %d. Retrying...\n", missingSeq)
 					retries++
 				}
 			}
@@ -236,10 +229,7 @@ func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets
 func finalizeTransmission(conn *net.UDPConn, clientAddr *net.UDPAddr, dataChannel chan<- []byte, receivedPackets map[int][]byte, numPackets int) {
 	if len(receivedPackets) == numPackets {
 		conn.WriteToUDP([]byte(ACK_COMPLETE), clientAddr)
-		fmt.Println("Final ACK sent. Transmission complete.")
 		dataChannel <- reassembleMessage(receivedPackets)
-	} else {
-		fmt.Println("Failed to receive all packets.")
 	}
 }
 
