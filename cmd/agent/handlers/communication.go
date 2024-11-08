@@ -20,23 +20,57 @@ package handlers
 
 import (
 	"fmt"
-	"net"
+	"netmsys/cmd/message"
+	"netmsys/pkg/nettsk"
+	"netmsys/tools/parsers"
+	"strings"
 )
 
-// Get the first non-loopback IP address of the host
-func GetLocalIP() (string, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "", err
-	}
+func (a *Agent) Register() {
+	registerMessage := "REGISTER|" + a.ID + ":" + a.IPAddr
+	nettsk.Send(a.ServerAddr, a.UDPPort, []byte(registerMessage))
+}
 
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil {
-				return ipNet.IP.String(), nil
-			}
+func (a *Agent) ListenServer() {
+	dataChannel := make(chan []byte)
+	errorChannel := make(chan error)
+
+	// Start receiving data on UDP port with Receive function
+	go func() {
+		for {
+			nettsk.Receive(a.UDPPort, dataChannel, errorChannel)
+		}
+	}()
+
+	fmt.Println("Agent is listening for server messages on UDP port", a.UDPPort)
+
+	for {
+		select {
+		case data := <-dataChannel:
+			// Process received data
+			a.handleServerMessage(data)
+		case err := <-errorChannel:
+			// Handle any errors reported by Receive
+			fmt.Println("Error receiving data:", err)
 		}
 	}
+}
 
-	return "", fmt.Errorf("no non-loopback IP address found")
+func (a *Agent) handleServerMessage(data []byte) {
+	message := string(data)
+	if strings.HasPrefix(message, "TASK|") {
+		task := strings.TrimPrefix(message, "TASK|")
+		a.registerTask(task)
+	}
+}
+
+func (a *Agent) registerTask(task string) {
+	var newTask message.Task
+	err := parsers.DeserializeJSON([]byte(task), &newTask)
+	if err != nil {
+		fmt.Println("Couldn't register task!")
+	}
+
+	a.Tasks = append(a.Tasks, newTask)
+	fmt.Println("Registered new task:", newTask.TaskID)
 }

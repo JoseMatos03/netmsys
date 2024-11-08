@@ -21,38 +21,109 @@ package handlers
 import (
 	"bufio"
 	"fmt"
+	"netmsys/cmd/message"
+	"netmsys/tools/parsers"
 	"os"
 	"strings"
 )
 
 // CommandLineInterface runs an infinite loop to handle user commands.
-func CommandLineInterface() {
+func (s *Server) StartCLI() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
 		fmt.Print("> ") // Command-line prompt
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading input:", err)
 			continue
 		}
 
 		// Trim the input to avoid issues with newlines
 		command := strings.TrimSpace(input)
+		var commErr error
 
 		// Handle commands
 		switch {
-		case strings.HasPrefix(command, "send"):
-			SendCommand(command)
+		case strings.HasPrefix(command, "load"):
+			commErr = s.loadCommand(command)
 
 		case strings.HasPrefix(command, "help"):
-			HelpCommand(command)
+			s.helpCommand(command)
 
 		case command == "quit":
-			QuitCommand()
+			s.quitCommand()
 
 		default:
 			fmt.Println("Unknown command. Available commands: load_task <json-file>, quit")
 		}
+
+		if commErr != nil {
+			fmt.Printf("interface.StartCLI(): Error executing command.\n%v\n", commErr)
+		}
+	}
+}
+
+func (s *Server) loadCommand(command string) error {
+	// Extract the path to the JSON file from the command
+	// Assuming the format is "send <path-to-json>"
+	commandParts := strings.Split(command, " ")
+	if len(commandParts) < 2 {
+		return fmt.Errorf("invalid command format. Usage: load <path-to-json>")
+	}
+
+	jsonFile := commandParts[1]
+
+	// Read the JSON file into a Task struct
+	var task message.Task
+	err := parsers.ReadJSONFile(jsonFile, &task)
+	if err != nil {
+		return fmt.Errorf("failed to read task JSON file")
+	}
+
+	s.Tasks = append(s.Tasks, task)
+	fmt.Printf("Loaded task %s.\n", task.TaskID)
+	s.SendTask(task.TaskID)
+	return nil
+}
+
+func (s *Server) helpCommand(command string) {
+	helpArgs := strings.Split(command, " ")
+	if len(helpArgs) == 1 {
+		printGeneralHelp()
+	} else if len(helpArgs) == 2 {
+		printCommandHelp(helpArgs[1])
+	} else {
+		fmt.Println("Usage: help <command_name>")
+	}
+}
+
+func (s *Server) quitCommand() {
+	fmt.Println("Shutting down server...")
+	os.Exit(0)
+}
+
+// printGeneralHelp displays a general help message
+func printGeneralHelp() {
+	fmt.Println("Available commands:")
+	fmt.Println("  send <json-file>       - Send a task from the specified JSON file")
+	fmt.Println("  quit                   - Quit the server")
+	fmt.Println("  help                   - Show general help information")
+	fmt.Println("  help <command_name>    - Show specific help for a command")
+}
+
+// printCommandHelp displays specific help for a given command
+func printCommandHelp(command string) {
+	switch command {
+	case "load_task":
+		fmt.Println("Usage: send <json-file>")
+		fmt.Println("Description: Sends a task from the specified JSON file to its targets.")
+	case "quit":
+		fmt.Println("Usage: quit")
+		fmt.Println("Description: Shuts down the server and exits the program.")
+	case "help":
+		fmt.Println("Usage: help <command_name>")
+		fmt.Println("Description: Provides detailed information for a specific command.")
+	default:
+		fmt.Println("No help available for the specified command.")
 	}
 }
