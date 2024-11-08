@@ -64,6 +64,7 @@ func (s *Server) SendTask(taskID string) {
 }
 
 func (s *Server) ListenAgents() {
+	// UDP Channels
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
 

@@ -82,6 +82,7 @@ func (s *Server) loadCommand(command string) error {
 
 	s.Tasks = append(s.Tasks, task)
 	fmt.Printf("Loaded task %s.\n", task.TaskID)
+	s.SendTask(task.TaskID)
 	return nil
 }
 
