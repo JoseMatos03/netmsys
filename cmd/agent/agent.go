@@ -33,6 +33,8 @@ func main() {
 
 	go agent.ListenServer()
 	go agent.RunAgentTasks()
+	go agent.StartTCPIperfServer()
+	go agent.StartUDPIperfServer()
 	agent.Register()
 	agent.StartCLI()
 }

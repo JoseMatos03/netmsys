@@ -20,28 +20,37 @@ package message
 
 // Task represents a monitoring task with all related options
 type Task struct {
-	TaskID        string          `json:"task_id"`
-	Frequency     int             `json:"frequency"`
-	Targets       []string        `json:"targets"`
-	DeviceOptions []DeviceOptions `json:"device_options"`
+	TaskID              string              `json:"task_id"`
+	Frequency           int                 `json:"frequency"`
+	Targets             []string            `json:"targets"`
+	AlertFlowConditions AlertFlowConditions `json:"alertflow_conditions"`
+	MonitorOptions      MonitorOptions      `json:"monitor_options"`
+	DeviceOptions       []DeviceOptions     `json:"device_options"`
 }
 
-// DeviceOptions represents configuration for a specific device
-type DeviceOptions struct {
-	DeviceID            string              `json:"device_id"`
-	IPAddress           string              `json:"ip_address"`
-	UDPPort             string              `json:"udp_port"`
-	TCPPort             string              `json:"tcp_port"`
-	MonitorOptions      MonitorOptions      `json:"monitor_options"`
-	LinkOptions         LinkOptions         `json:"link_options"`
-	AlertFlowConditions AlertFlowConditions `json:"alertflow_conditions"`
+// AlertFlowConditions holds thresholds for alerting
+type AlertFlowConditions struct {
+	CPUUsage       float64 `json:"cpu_usage"`
+	RAMUsage       float64 `json:"ram_usage"`
+	PacketLoss     float64 `json:"packet_loss"`
+	InterfaceStats int     `json:"interface_stats"`
+	Jitter         int     `json:"jitter"`
 }
 
 // MonitorOptions represents options for monitoring resources on a device
 type MonitorOptions struct {
 	MonitorCPU bool     `json:"monitor_cpu"`
 	MonitorRAM bool     `json:"monitor_ram"`
-	Interfaces []string `json:"intercaces"`
+	Interfaces []string `json:"interfaces"`
+}
+
+// DeviceOptions represents configuration for a specific device
+type DeviceOptions struct {
+	DeviceID    string      `json:"device_id"`
+	IPAddress   string      `json:"ip_address"`
+	UDPPort     string      `json:"udp_port"`
+	TCPPort     string      `json:"tcp_port"`
+	LinkOptions LinkOptions `json:"link_options"`
 }
 
 // LinkOptions holds various link monitoring configurations
@@ -87,13 +96,4 @@ type LatencyOptions struct {
 	PacketSize  int `json:"packet_size"`
 	Interval    int `json:"interval"`
 	Timeout     int `json:"timeout"`
-}
-
-// AlertFlowConditions holds thresholds for alerting
-type AlertFlowConditions struct {
-	CPUUsage       float64 `json:"cpu_usage"`
-	RAMUsage       float64 `json:"ram_usage"`
-	PacketLoss     float64 `json:"packet_loss"`
-	InterfaceStats int     `json:"interface_stats"`
-	Jitter         int     `json:"jitter"`
 }

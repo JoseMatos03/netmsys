@@ -24,6 +24,7 @@ import (
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -112,12 +113,29 @@ func (s *Server) handleAgentMessage(data []byte) error {
 			return err
 		}
 	}
-	if strings.HasPrefix(message, "OUTPUT|") {
-		// Extract the output data
-		outputData := strings.TrimPrefix(message, "OUTPUT|")
+	if strings.HasPrefix(message, "OUTPUT-") {
+		// Split the message to extract taskID and iterationNumber
+		messageParts := strings.SplitN(message, "|", 2)
+		if len(messageParts) < 2 {
+			return fmt.Errorf("Invalid message format: %s", message)
+		}
+
+		// Extract and parse the prefix part "OUTPUT-{taskID}-I{iterationNumber}"
+		prefix := messageParts[0]
+		outputData := messageParts[1]
+
+		// Use regex to extract taskID and iterationNumber from the prefix
+		re := regexp.MustCompile(`OUTPUT-(.+?)-I(\d+)`)
+		matches := re.FindStringSubmatch(prefix)
+		if len(matches) != 3 {
+			return fmt.Errorf("Failed to parse taskID and iterationNumber from: %s", prefix)
+		}
+
+		taskID := matches[1]
+		iterationNumber := matches[2]
 
 		// Call the logOutput function to handle writing to the log file
-		err := s.logOutput(outputData)
+		err := s.logOutput(taskID, iterationNumber, outputData)
 		if err != nil {
 			return err
 		}
@@ -151,10 +169,10 @@ func (s *Server) registerAgent(agentID, ipAddr string) error {
 	return nil
 }
 
-func (s *Server) logOutput(outputData string) error {
+func (s *Server) logOutput(taskID, iterationNumber, outputData string) error {
 	// Define the output directory and log file path
 	outputDir := "outputs"
-	logFilePath := outputDir + "/output_log.txt" // TODO: Change to date or smth idk
+	logFilePath := fmt.Sprintf("%s/%s_%s-output.txt", outputDir, taskID, iterationNumber)
 
 	// Ensure the output directory exists
 	err := os.MkdirAll(outputDir, os.ModePerm)
