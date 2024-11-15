@@ -25,11 +25,14 @@ import (
 )
 
 // Receive listens on the given TCP address and receives messages
-func Receive(port string) {
+//channels fazer de informação e erros
+func Receive(port string, dataChannel chan <- [] byte, erroChannel chan <- error) {
 	// Listen for incoming TCP connections
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		fmt.Println("Error starting TCP listener:", err)
+		//fmt.Println("Error starting TCP listener:", err)
+		dataChannel<- err
+		erroChannel <- fmt.Errorf("Error starting TCP listener:")
 		return
 	}
 	defer listener.Close() // Only defer listener.Close(), not individual connections
@@ -38,26 +41,40 @@ func Receive(port string) {
 		// Accept a connection
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			//fmt.Println("Error accepting connection:", err)
+			dataChannel <-err
+			erroChannel <- fmt.Errorf("Error accepting connection:")
 			continue
 		}
 
 		// Handle the connection (read the message)
-		handleConnection(conn)
+		handleConnection(conn, erroChannel, dataChannel)
+		
 	}
 }
 
 // handleConnection processes an incoming TCP connection
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, erroChannel chan <- error, dataChannel chan <- []byte) {
 	defer conn.Close()
+	buffer := make([]byte, 1024)
 
+	_, err1 = conn.Read(buffer)
+	if err1 != nil{
+		//fmt.Println("Erro reading message:", err1)
+		erroChannel <- ftm.Errorf("Erro reading message:")
+		dataChannel <- err1
+	}
 	// Read all data from the connection until the client closes it
 	data, err := io.ReadAll(conn)
 	if err != nil {
-		fmt.Println("Error reading from connection:", err)
+		erroChannel <- ftm.Errorf("Error reading from connection:")
+		dataChannel <- err
+		//fmt.Println("Error reading from connection:", err)
 		return
 	}
 
+
 	// Display the received message
+	dataChannel <- data
 	fmt.Println("Received TCP message:", string(data))
 }

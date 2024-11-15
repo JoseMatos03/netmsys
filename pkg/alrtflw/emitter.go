@@ -24,7 +24,8 @@ import (
 )
 
 // Send sends a message to the given TCP server address
-func Send(addr string, port string, message string) {
+// arrays de bits
+func Send(addr []string, port []byte, data []byte) {
 	// Establish a TCP connection
 	conn, err := net.Dial("tcp", addr+":"+port)
 	if err != nil {
