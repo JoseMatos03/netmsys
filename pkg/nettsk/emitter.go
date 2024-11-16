@@ -29,17 +29,6 @@ import (
 	"time"
 )
 
-const (
-	MaxPacketSize   = 512
-	TimeoutDuration = 4 * time.Second
-	MaxRetransmits  = 5
-	Agreement       = "AGREEMENT|%d"
-	AckAgreement    = "ACK_AGREEMENT"
-	AckComplete     = "ACK_COMPLETE"
-	Recovery        = "RECOVERY|%d"
-	FastRecovery    = "FAST_RECOVERY|%d" // Define fast recovery signal
-)
-
 // Send transmits data to a specific address and port over UDP.
 // It splits the data into packets, initiates an agreement with the receiver,
 // sends all packets, and handles recovery if packets are lost or timeouts occur.
@@ -87,11 +76,11 @@ func Send(addr string, port string, data []byte) error {
 // - The total number of packets.
 // - A slice of byte slices, each containing a packet's data.
 func calculatePackets(data []byte) (int, [][]byte) {
-	numPackets := (len(data) + MaxPacketSize - 1) / MaxPacketSize
+	numPackets := (len(data) + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE
 	var packets [][]byte
 
-	for i := 0; i < len(data); i += MaxPacketSize {
-		end := i + MaxPacketSize
+	for i := 0; i < len(data); i += MAX_PACKET_SIZE {
+		end := i + MAX_PACKET_SIZE
 		if end > len(data) {
 			end = len(data)
 		}
@@ -111,14 +100,14 @@ func calculatePackets(data []byte) (int, [][]byte) {
 // Returns:
 // - True if the agreement was acknowledged, false otherwise.
 func sendAgreement(conn *net.UDPConn, numPackets int) (bool, error) {
-	agreementPacket := []byte(fmt.Sprintf(Agreement, numPackets))
+	agreementPacket := []byte(fmt.Sprintf(AGREEMENT, numPackets))
 	ackReceived := false
 	retransmits := 0
 
-	for !ackReceived && retransmits < MaxRetransmits {
+	for !ackReceived && retransmits < MAX_RETRANSMIT {
 		conn.Write(agreementPacket)
 
-		conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
+		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
 		buf := make([]byte, 1024)
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
@@ -127,7 +116,7 @@ func sendAgreement(conn *net.UDPConn, numPackets int) (bool, error) {
 		}
 
 		ack := string(buf[:n])
-		if ack == AckAgreement {
+		if ack == ACK_AGREEMENT {
 			ackReceived = true
 		}
 
@@ -169,14 +158,14 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte) error {
 	buf := make([]byte, 1024)
 
 	for {
-		conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
+		conn.SetReadDeadline(time.Now().Add(TIMEOUT))
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
 			return fmt.Errorf("timeout waiting for ACK. assuming successful transmission")
 		}
 
 		ack := string(buf[:n])
-		if ack == AckComplete {
+		if ack == ACK_COMPLETE {
 			return nil
 		}
 

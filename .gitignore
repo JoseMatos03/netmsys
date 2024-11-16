@@ -14,8 +14,11 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Outputs of the application
+outputs/
+
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # Build directory
 build/
