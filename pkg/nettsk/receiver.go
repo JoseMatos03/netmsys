@@ -29,26 +29,6 @@ import (
 	"time"
 )
 
-const (
-	// RECOVERY represents the format for recovery requests for a specific packet.
-	RECOVERY = "RECOVERY|%d"
-
-	// FAST_RECOVERY is the format for fast recovery requests to re-transmit missing packets.
-	FAST_RECOVERY = "FAST_RECOVERY|%d"
-
-	// ACK_AGREEMENT is sent to confirm initial agreement for packet transmission.
-	ACK_AGREEMENT = "ACK_AGREEMENT"
-
-	// ACK_COMPLETE is sent to indicate successful completion of transmission.
-	ACK_COMPLETE = "ACK_COMPLETE"
-
-	// MAX_RETRANSMIT defines the maximum number of retransmission attempts.
-	MAX_RETRANSMIT = 5
-
-	// TIMEOUT defines the duration to wait before declaring a packet timeout.
-	TIMEOUT = 1 * time.Second
-)
-
 // Receive listens for UDP packets on the specified port, handling
 // packet loss and retransmissions. Received data is sent through dataChannel,
 // and any errors are sent through errorChannel.
@@ -188,12 +168,12 @@ func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets
 			retries := 0
 			packetReceived := false
 
-			for !packetReceived && retries < MaxRetransmits {
+			for !packetReceived && retries < MAX_RETRANSMIT {
 				// Send RECOVERY request for the missing packet
-				conn.WriteToUDP([]byte(fmt.Sprintf(Recovery, missingSeq)), clientAddr)
+				conn.WriteToUDP([]byte(fmt.Sprintf(RECOVERY, missingSeq)), clientAddr)
 
 				// Set a read deadline for the response
-				conn.SetReadDeadline(time.Now().Add(TimeoutDuration))
+				conn.SetReadDeadline(time.Now().Add(TIMEOUT))
 				buf := make([]byte, 1024)
 				n, _, err := conn.ReadFromUDP(buf)
 
@@ -209,7 +189,7 @@ func handleMissingPackets(conn *net.UDPConn, clientAddr *net.UDPAddr, numPackets
 
 			// If packet was not received after all retries, return an error
 			if !packetReceived {
-				return fmt.Errorf("failed to receive missing packet %d after %d attempts", missingSeq, MaxRetransmits)
+				return fmt.Errorf("failed to receive missing packet %d after %d attempts", missingSeq, MAX_RETRANSMIT)
 			}
 		}
 	}

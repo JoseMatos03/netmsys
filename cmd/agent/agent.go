@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"netmsys/cmd/agent/handlers"
 	"os"
-	"time"
 )
 
 func main() {
@@ -33,6 +32,9 @@ func main() {
 	}
 
 	go agent.ListenServer()
+	go agent.RunAgentTasks()
+	go agent.StartTCPIperfServer()
+	go agent.StartUDPIperfServer()
 	agent.Register()
-	time.Sleep(5 * time.Second)
+	agent.StartCLI()
 }

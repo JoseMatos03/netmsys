@@ -23,6 +23,7 @@ import (
 	"netmsys/cmd/message"
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
+	"os/exec"
 	"strings"
 )
 
@@ -56,6 +57,42 @@ func (a *Agent) ListenServer() {
 	}
 }
 
+func (a *Agent) StartTCPIperfServer() error {
+	// Command to start the iperf server in the background
+	cmd := exec.Command("iperf", "-s")
+
+	// Redirect standard output and error for debugging/logging purposes
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	// Start the iperf server
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start tcp iperf server: %v", err)
+	}
+
+	fmt.Println("TCP Iperf server started successfully")
+	return nil
+}
+
+func (a *Agent) StartUDPIperfServer() error {
+	// Command to start the iperf server in the background
+	cmd := exec.Command("iperf", "-s", "-u")
+
+	// Redirect standard output and error for debugging/logging purposes
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	// Start the iperf server
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start udp iperf server: %v", err)
+	}
+
+	fmt.Println("UDP Iperf server started successfully")
+	return nil
+}
+
 func (a *Agent) handleServerMessage(data []byte) {
 	message := string(data)
 	if strings.HasPrefix(message, "TASK|") {
@@ -71,6 +108,6 @@ func (a *Agent) registerTask(task string) {
 		fmt.Println("Couldn't register task!")
 	}
 
-	a.Tasks = append(a.Tasks, newTask)
+	a.AddTask(newTask)
 	fmt.Println("Registered new task:", newTask.TaskID)
 }
