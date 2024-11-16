@@ -43,7 +43,7 @@ func ParsePingOutput(pingOutput string) (string, error) {
 	}
 
 	return fmt.Sprintf(
-		"transmitted: %d\nreceived: %d\npacket loss: %.2f%%\ntime elapsed: %dms\nlatency (min/avg/max/mdev): %.3f/%.3f/%.3f/%.3f ms",
+		"----- Ping Report -----\ntransmitted: %d\nreceived: %d\npacket loss: %.2f%%\ntime elapsed: %dms\nlatency (min/avg/max/mdev): %.3f/%.3f/%.3f/%.3f ms\n",
 		result.Transmitted, result.Received, result.PacketLoss, result.TimeElapsed,
 		result.LatencyStats.Min, result.LatencyStats.Avg, result.LatencyStats.Max, result.LatencyStats.Mdev,
 	), nil

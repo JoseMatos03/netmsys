@@ -117,7 +117,7 @@ func (s *Server) handleAgentMessage(data []byte) error {
 		// Split the message to extract taskID and iterationNumber
 		messageParts := strings.SplitN(message, "|", 2)
 		if len(messageParts) < 2 {
-			return fmt.Errorf("Invalid message format: %s", message)
+			return fmt.Errorf("invalid message format: %s", message)
 		}
 
 		// Extract and parse the prefix part "OUTPUT-{taskID}-I{iterationNumber}"
@@ -128,7 +128,7 @@ func (s *Server) handleAgentMessage(data []byte) error {
 		re := regexp.MustCompile(`OUTPUT-(.+?)-I(\d+)`)
 		matches := re.FindStringSubmatch(prefix)
 		if len(matches) != 3 {
-			return fmt.Errorf("Failed to parse taskID and iterationNumber from: %s", prefix)
+			return fmt.Errorf("failed to parse taskID and iterationNumber from: %s", prefix)
 		}
 
 		taskID := matches[1]
@@ -172,7 +172,7 @@ func (s *Server) registerAgent(agentID, ipAddr string) error {
 func (s *Server) logOutput(taskID, iterationNumber, outputData string) error {
 	// Define the output directory and log file path
 	outputDir := "outputs"
-	logFilePath := fmt.Sprintf("%s/%s_%s-output.txt", outputDir, taskID, iterationNumber)
+	logFilePath := fmt.Sprintf("%s/%s_i%s-output.txt", outputDir, taskID, iterationNumber)
 
 	// Ensure the output directory exists
 	err := os.MkdirAll(outputDir, os.ModePerm)

@@ -153,10 +153,7 @@ func (a *Agent) runBandwidthTest(options BandwidthOptions, targetIP string, task
 	}
 
 	// Parse the command output
-	parsedMessage, errParser := message.ParseIperfOutput(string(output))
-	if errParser != nil {
-		return errParser
-	}
+	parsedMessage := message.ParseBandwidthOutput(string(output))
 
 	// Send the command output
 	outputMessage := fmt.Sprintf("OUTPUT-%s-I%d|%s", taskID, iteration, parsedMessage)
@@ -179,10 +176,7 @@ func (a *Agent) runJitterTest(options JitterOptions, targetIP string, taskID str
 	}
 
 	// Parse the command output
-	parsedMessage, errParser := message.ParseIperfOutput(string(output))
-	if errParser != nil {
-		return errParser
-	}
+	parsedMessage := message.ParseJitterData(string(output))
 
 	// Send the command output
 	outputMessage := fmt.Sprintf("OUTPUT-%s-I%d|%s", taskID, iteration, parsedMessage)
@@ -205,10 +199,7 @@ func (a *Agent) runPacketLossTest(options PacketLossOptions, targetIP string, ta
 	}
 
 	// Parse the command output
-	parsedMessage, errParser := message.ParseIperfOutput(string(output))
-	if errParser != nil {
-		return errParser
-	}
+	parsedMessage := message.ParsePacketLossData(string(output))
 
 	// Send the command output
 	outputMessage := fmt.Sprintf("OUTPUT-%s-I%d|%s", taskID, iteration, parsedMessage)
