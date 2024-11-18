@@ -19,45 +19,38 @@
 package alrtflw
 
 import (
-	"fmt"
-	"io"
 	"net"
 )
 
-// Receive listens on the given TCP address and receives messages
-func Receive(port string) {
-	// Listen for incoming TCP connections
+func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		fmt.Println("Error starting TCP listener:", err)
+		errorChannel <- err
 		return
 	}
-	defer listener.Close() // Only defer listener.Close(), not individual connections
+	defer listener.Close()
 
 	for {
-		// Accept a connection
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			errorChannel <- err
 			continue
 		}
 
-		// Handle the connection (read the message)
-		handleConnection(conn)
+		// Handle the connection
+		handleConnection(conn, dataChannel, errorChannel)
 	}
 }
 
 // handleConnection processes an incoming TCP connection
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, dataChannel chan<- []byte, errorChannel chan<- error) {
 	defer conn.Close()
+	buffer := make([]byte, 1024)
 
-	// Read all data from the connection until the client closes it
-	data, err := io.ReadAll(conn)
+	_, err := conn.Read(buffer)
 	if err != nil {
-		fmt.Println("Error reading from connection:", err)
-		return
+		errorChannel <- err
 	}
 
-	// Display the received message
-	fmt.Println("Received TCP message:", string(data))
+	dataChannel <- buffer
 }

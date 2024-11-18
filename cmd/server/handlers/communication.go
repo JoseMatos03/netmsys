@@ -21,9 +21,11 @@ package handlers
 import (
 	"fmt"
 	"netmsys/cmd/message"
+	"netmsys/pkg/alrtflw"
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 )
@@ -66,11 +68,10 @@ func (s *Server) SendTask(taskID string) {
 }
 
 func (s *Server) ListenAgents() {
-	// UDP Channels
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
 
-	// Start receiving data on UDP port with Receive function
+	// Start receiving data on UDP port
 	go func() {
 		for {
 			nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
@@ -88,10 +89,47 @@ func (s *Server) ListenAgents() {
 				fmt.Printf("communication.ListenAgents(): Error handling message.\n")
 			}
 		case err := <-errorChannel:
-			// Handle any errors reported by Receive
 			fmt.Printf("communication.ListenAgents(): Error receiving data: %s\n", err)
 		}
 	}
+}
+
+func (s *Server) ListenAlerts() {
+	dataChannel := make(chan []byte)
+	errorChannel := make(chan error)
+
+	// Start receiving data on TCP port
+	go alrtflw.Receive(s.TCPPort, dataChannel, errorChannel)
+
+	fmt.Printf("Listening for agent messages on TCP port: %s\n", s.TCPPort)
+
+	for {
+		select {
+		case data := <-dataChannel:
+			// Process received data
+			fmt.Printf("%s\n", string(data))
+		case err := <-errorChannel:
+			fmt.Printf("communication.ListenAgents(): Error receiving data: %s\n", err)
+		}
+	}
+}
+
+func (s *Server) StartUDPIperfServer() error {
+	// Command to start the iperf server in the background
+	cmd := exec.Command("iperf", "-s", "-u")
+
+	// Redirect standard output and error for debugging/logging purposes
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	// Start the iperf server
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start udp iperf server: %v", err)
+	}
+
+	fmt.Println("UDP Iperf server started successfully")
+	return nil
 }
 
 // handleAgentMessage checks if a message is a wake-up signal and registers the agent.
