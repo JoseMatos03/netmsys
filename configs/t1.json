@@ -15,9 +15,10 @@
     "monitor_cpu": true,
     "monitor_ram": true,
     "interfaces": [
-      "eth0",
-      "eth1",
-      "eth2"
+      {
+        "name": "eth0",
+        "ip": "10.0.5.10"
+      }
     ]
   },
   "device_options": [

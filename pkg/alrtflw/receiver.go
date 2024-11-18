@@ -19,62 +19,38 @@
 package alrtflw
 
 import (
-	"fmt"
-	"io"
 	"net"
 )
 
-// Receive listens on the given TCP address and receives messages
-//channels fazer de informação e erros
-func Receive(port string, dataChannel chan <- [] byte, erroChannel chan <- error) {
-	// Listen for incoming TCP connections
+func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		//fmt.Println("Error starting TCP listener:", err)
-		dataChannel<- err
-		erroChannel <- fmt.Errorf("Error starting TCP listener:")
+		errorChannel <- err
 		return
 	}
-	defer listener.Close() // Only defer listener.Close(), not individual connections
+	defer listener.Close()
 
 	for {
-		// Accept a connection
 		conn, err := listener.Accept()
 		if err != nil {
-			//fmt.Println("Error accepting connection:", err)
-			dataChannel <-err
-			erroChannel <- fmt.Errorf("Error accepting connection:")
+			errorChannel <- err
 			continue
 		}
 
-		// Handle the connection (read the message)
-		handleConnection(conn, erroChannel, dataChannel)
-		
+		// Handle the connection
+		handleConnection(conn, dataChannel, errorChannel)
 	}
 }
 
 // handleConnection processes an incoming TCP connection
-func handleConnection(conn net.Conn, erroChannel chan <- error, dataChannel chan <- []byte) {
+func handleConnection(conn net.Conn, dataChannel chan<- []byte, errorChannel chan<- error) {
 	defer conn.Close()
 	buffer := make([]byte, 1024)
 
-	_, err1 = conn.Read(buffer)
-	if err1 != nil{
-		//fmt.Println("Erro reading message:", err1)
-		erroChannel <- ftm.Errorf("Erro reading message:")
-		dataChannel <- err1
-	}
-	// Read all data from the connection until the client closes it
-	data, err := io.ReadAll(conn)
+	_, err := conn.Read(buffer)
 	if err != nil {
-		erroChannel <- ftm.Errorf("Error reading from connection:")
-		dataChannel <- err
-		//fmt.Println("Error reading from connection:", err)
-		return
+		errorChannel <- err
 	}
 
-
-	// Display the received message
-	dataChannel <- data
-	fmt.Println("Received TCP message:", string(data))
+	dataChannel <- buffer
 }

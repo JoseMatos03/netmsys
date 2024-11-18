@@ -39,9 +39,14 @@ type AlertFlowConditions struct {
 
 // MonitorOptions represents options for monitoring resources on a device
 type MonitorOptions struct {
-	MonitorCPU bool     `json:"monitor_cpu"`
-	MonitorRAM bool     `json:"monitor_ram"`
-	Interfaces []string `json:"interfaces"`
+	MonitorCPU bool         `json:"monitor_cpu"`
+	MonitorRAM bool         `json:"monitor_ram"`
+	Interfaces []Interfaces `json:"interfaces"`
+}
+
+type Interfaces struct {
+	Name string `json:"name"`
+	IP   string `json:"ip"`
 }
 
 // DeviceOptions represents configuration for a specific device

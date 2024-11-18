@@ -25,7 +25,7 @@ import (
 
 // Send sends a message to the given TCP server address
 // arrays de bits
-func Send(addr []string, port []byte, data []byte) {
+func Send(addr string, port string, data []byte) {
 	// Establish a TCP connection
 	conn, err := net.Dial("tcp", addr+":"+port)
 	if err != nil {
@@ -35,11 +35,9 @@ func Send(addr []string, port []byte, data []byte) {
 	defer conn.Close()
 
 	// Send the message
-	_, err = conn.Write([]byte(message))
+	_, err = conn.Write(data)
 	if err != nil {
 		fmt.Println("Error sending message:", err)
 		return
 	}
-
-	fmt.Println("Message sent:", message)
 }
