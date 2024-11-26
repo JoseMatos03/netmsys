@@ -27,11 +27,39 @@ import (
 	"strings"
 )
 
+// Register sends a registration message to the server to inform it of the agent's presence.
+//
+// Behavior:
+//   - Constructs a registration message in the format "REGISTER|<AgentID>:<AgentIP>".
+//   - Sends the message to the server's UDP port using the NetTask protocol.
+//
+// Example:
+//
+//	If the agent's ID is "Agent1" and its IP is "192.168.1.10", the registration message will be:
+//	"REGISTER|Agent1:192.168.1.10".
+//
+// Dependencies:
+//   - Requires the "nettsk" package for sending UDP messages.
 func (a *Agent) Register() {
 	registerMessage := "REGISTER|" + a.ID + ":" + a.IPAddr
 	nettsk.Send(a.ServerAddr, a.UDPPort, []byte(registerMessage))
 }
 
+// ListenServer listens for incoming messages from the server on the agent's UDP port.
+//
+// Behavior:
+//   - Continuously listens for data on the agent's UDP port using the NetTask protocol.
+//   - Uses separate channels to handle incoming data and errors.
+//   - Processes received messages by passing them to `handleServerMessage`.
+//   - Logs errors if there are issues receiving data.
+//
+// Example:
+//
+//	The agent listens for server messages on the configured UDP port, processes tasks,
+//	and handles errors during message reception.
+//
+// Dependencies:
+//   - Requires the "nettsk" package for receiving UDP messages.
 func (a *Agent) ListenServer() {
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
@@ -53,6 +81,15 @@ func (a *Agent) ListenServer() {
 	}
 }
 
+// StartTCPIperfServer starts a TCP-based Iperf server in the background.
+//
+// Behavior:
+//   - Executes the "iperf -s" command to start an Iperf server in TCP mode.
+//   - Runs the command in the background with no output redirection.
+//   - Logs success or returns an error if the server fails to start.
+//
+// Returns:
+//   - error: An error if the Iperf server cannot be started.
 func (a *Agent) StartTCPIperfServer() error {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s")
@@ -71,6 +108,15 @@ func (a *Agent) StartTCPIperfServer() error {
 	return nil
 }
 
+// StartUDPIperfServer starts a UDP-based Iperf server in the background.
+//
+// Behavior:
+//   - Executes the "iperf -s -u" command to start an Iperf server in UDP mode.
+//   - Runs the command in the background with no output redirection.
+//   - Logs success or returns an error if the server fails to start.
+//
+// Returns:
+//   - error: An error if the Iperf server cannot be started.
 func (a *Agent) StartUDPIperfServer() error {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s", "-u")
@@ -89,6 +135,19 @@ func (a *Agent) StartUDPIperfServer() error {
 	return nil
 }
 
+// handleServerMessage processes incoming messages from the server.
+//
+// Parameters:
+//   - data: The raw byte array containing the server's message.
+//
+// Behavior:
+//   - Converts the message from bytes to a string for processing.
+//   - Checks if the message starts with the "TASK|" prefix.
+//   - If a task is identified, extracts the task details and registers it by calling `registerTask`.
+//
+// Example:
+//
+//	A message like "TASK|{...}" will be passed to `registerTask` for deserialization and storage.
 func (a *Agent) handleServerMessage(data []byte) {
 	message := string(data)
 	if strings.HasPrefix(message, "TASK|") {
@@ -97,6 +156,22 @@ func (a *Agent) handleServerMessage(data []byte) {
 	}
 }
 
+// registerTask deserializes and registers a new task for the agent.
+//
+// Parameters:
+//   - task: The string representation of the task in JSON format.
+//
+// Behavior:
+//   - Parses the JSON string into a `message.Task` object using the `parsers.DeserializeJSON` method.
+//   - If successful, adds the task to the agent's task list and logs the task ID.
+//   - Logs an error if the JSON deserialization fails.
+//
+// Example:
+//
+//	A valid task string like '{"TaskID": "Task1", ...}' will be deserialized and added to the agent's task list.
+//
+// Dependencies:
+//   - Requires the "parsers" package for JSON deserialization.
 func (a *Agent) registerTask(task string) {
 	var newTask message.Task
 	err := parsers.DeserializeJSON([]byte(task), &newTask)

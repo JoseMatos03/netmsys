@@ -13,18 +13,20 @@ type BandwidthEntry struct {
 
 func ParseBandwidthOutput(output string) string {
 	// Regex to match lines that contain bandwidth information
-	re := regexp.MustCompile(`\[\s*\d+\] (\d+\.\d+)-(\d+\.\d+) sec\s+([\d\.]+ [KMG]Bytes)\s+([\d\.]+ [KMG]bits/sec)`)
-	matches := re.FindAllStringSubmatch(output, -1)
+	re := regexp.MustCompile(`^\[\s*\d+\]\s+([\d\.]+-[\d\.]+)\s+sec\s+([\d\.]+\s+[KMGT]?Bytes)\s+([\d\.]+\s+[KMGT]?bits/sec)\s+[\d\.]+\s+ms\s+\d+\/\d+\s+\(\d+%\)`)
+	match := re.FindStringSubmatch(output)
 
-	formattedEntries := "----- Bandwidth Report -----\n"
-	for _, match := range matches {
-		interval := match[1] + "-" + match[2] + " sec"
-		transfer := match[3]
-		bandwidth := match[4]
-
-		entry := fmt.Sprintf("Interval: %s, Transfer: %s, Bandwidth: %s", interval, transfer, bandwidth)
-		formattedEntries += entry + "\n"
+	if match == nil {
+		return "No bandwitdh information found."
 	}
 
-	return formattedEntries
+	interval := match[1]
+	transfer := match[2]
+	bandwidth := match[3]
+
+	formattedEntry := "----- Bandwidth Report -----\n"
+	formattedEntry += fmt.Sprintf("Interval: %s, Transfer: %s, Bandwidth: %s", interval, transfer, bandwidth)
+	formattedEntry += "\n"
+
+	return formattedEntry
 }

@@ -30,6 +30,15 @@ import (
 	"strings"
 )
 
+// SendTask locates a task by its ID and sends it to the target agents.
+//
+// Parameters:
+//   - taskID: The unique identifier of the task to send.
+//
+// Behavior:
+//   - Finds the task in the server's list of tasks based on the taskID.
+//   - Serializes the task into JSON format.
+//   - Sends the serialized task to each agent specified in the task's target list using the `nettsk.Send` function.
 func (s *Server) SendTask(taskID string) {
 	// Find the task by ID
 	var task *message.Task
@@ -67,6 +76,16 @@ func (s *Server) SendTask(taskID string) {
 	}
 }
 
+// ListenAgents listens for agent messages on the server's UDP port.
+//
+// Behavior:
+//   - Starts listening on the configured UDP port using the `nettsk.Receive` function.
+//   - Processes incoming messages by passing them to `handleAgentMessage`.
+//   - Logs any errors encountered during data reception or message handling.
+//
+// Notes:
+//   - This function is non-blocking when called with `go`.
+//   - It continuously listens for messages in an infinite loop.
 func (s *Server) ListenAgents() {
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
@@ -90,6 +109,16 @@ func (s *Server) ListenAgents() {
 	}
 }
 
+// ListenAlerts listens for alert messages on the server's TCP port.
+//
+// Behavior:
+//   - Starts listening on the configured TCP port using the `alrtflw.Receive` function.
+//   - Logs incoming messages to standard output.
+//   - Logs any errors encountered during data reception.
+//
+// Notes:
+//   - This function is non-blocking when called with `go`.
+//   - It continuously listens for messages in an infinite loop.
 func (s *Server) ListenAlerts() {
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
@@ -110,6 +139,15 @@ func (s *Server) ListenAlerts() {
 	}
 }
 
+// StartUDPIperfServer starts a UDP-based Iperf server in the background.
+//
+// Behavior:
+//   - Executes the "iperf -s -u" command to start an Iperf server in UDP mode.
+//   - Runs the command in the background with no output redirection.
+//   - Logs success or returns an error if the server fails to start.
+//
+// Returns:
+//   - error: An error if the Iperf server cannot be started.
 func (s *Server) StartUDPIperfServer() error {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s", "-u")
@@ -128,7 +166,18 @@ func (s *Server) StartUDPIperfServer() error {
 	return nil
 }
 
-// handleAgentMessage checks if a message is a wake-up signal and registers the agent.
+// handleAgentMessage processes incoming messages from agents.
+//
+// Parameters:
+//   - data: The raw byte data received from an agent.
+//
+// Returns:
+//   - error: Returns an error if the message format is invalid or processing fails.
+//
+// Behavior:
+//   - Handles registration messages (prefix: "REGISTER|") to add agents to the server.
+//   - Handles output messages (prefix: "OUTPUT-") to log task results.
+//   - Extracts and processes task ID, iteration number, and output data for logging.
 func (s *Server) handleAgentMessage(data []byte) error {
 	message := string(data)
 	if strings.HasPrefix(message, "REGISTER|") {
@@ -175,11 +224,21 @@ func (s *Server) handleAgentMessage(data []byte) error {
 		}
 	}
 
-	// Other cases will go here after...
 	return nil
 }
 
-// registerAgent adds the agent to the map of AgentIDs if not already registered.
+// registerAgent registers a new agent with the server.
+//
+// Parameters:
+//   - agentID: The unique identifier of the agent.
+//   - ipAddr: The IP address of the agent.
+//
+// Returns:
+//   - error: Returns an error if the agent is already registered or if registration fails.
+//
+// Behavior:
+//   - Adds the agent to the server's `Agents` map.
+//   - Sends any pending tasks targeting the newly registered agent.
 func (s *Server) registerAgent(agentID, ipAddr string) error {
 	// Check if agent is already registered
 	if _, exists := s.Agents[agentID]; exists {
@@ -203,6 +262,22 @@ func (s *Server) registerAgent(agentID, ipAddr string) error {
 	return nil
 }
 
+// logOutput writes task output data to a log file.
+//
+// Parameters:
+//   - taskID: The ID of the task associated with the output.
+//   - iterationNumber: The iteration number of the task.
+//   - outputData: The output data to log.
+//
+// Returns:
+//   - error: Returns an error if the log file cannot be created, opened, or written to.
+//
+// Behavior:
+//   - Creates an output directory if it does not exist.
+//   - Appends the output data to a file named `<taskID>_i<iterationNumber>-output.txt` in the "outputs" directory.
+//
+// Notes:
+//   - Ensures thread safety when writing to files by using file-level locking.
 func (s *Server) logOutput(taskID, iterationNumber, outputData string) error {
 	// Define the output directory and log file path
 	outputDir := "outputs"

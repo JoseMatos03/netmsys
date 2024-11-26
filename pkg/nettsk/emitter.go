@@ -16,9 +16,8 @@
 //
 // ---------------------------------------------------------------------------------
 
-// Package nettsk provides functionality for receiving UDP messages
-// with packet retransmission and recovery mechanisms to handle
-// potential packet loss in unreliable networks.
+// Package nettsk provides functionality for sending data over UDP with
+// mechanisms to handle packet retransmission and recovery in case of packet loss.
 package nettsk
 
 import (
@@ -29,6 +28,16 @@ import (
 	"time"
 )
 
+// Send transmits data to a specified UDP address and port with mechanisms to
+// handle packet retransmission and recovery in case of packet loss.
+//
+// Parameters:
+//   - addr: The IP address of the target server.
+//   - port: The port of the target server.
+//   - data: The data to be sent as a byte slice.
+//
+// Returns:
+//   - An error if any step in the process fails, otherwise nil.
 func Send(addr string, port string, data []byte) error {
 	serverAddr, err := net.ResolveUDPAddr("udp", addr+":"+port)
 	if err != nil {
@@ -67,6 +76,15 @@ func Send(addr string, port string, data []byte) error {
 	return nil
 }
 
+// calculatePackets splits the given data into smaller packets based on
+// the defined maximum packet size.
+//
+// Parameters:
+//   - data: The data to be split as a byte slice.
+//
+// Returns:
+//   - The number of packets.
+//   - A slice of byte slices representing the packets.
 func calculatePackets(data []byte) (int, [][]byte) {
 	numPackets := (len(data) + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE
 	var packets [][]byte
@@ -82,6 +100,17 @@ func calculatePackets(data []byte) (int, [][]byte) {
 	return numPackets, packets
 }
 
+// handleAgreement sends an agreement packet to the server, indicating the
+// number of packets to be transmitted, and negotiates a new port for communication.
+//
+// Parameters:
+//   - conn: The UDP connection.
+//   - serverAddr: The server's address.
+//   - numPackets: The number of packets to be transmitted.
+//
+// Returns:
+//   - The newly negotiated port number.
+//   - An error if the agreement process fails.
 func handleAgreement(conn *net.UDPConn, serverAddr *net.UDPAddr, numPackets int) (int, error) {
 	agreementPacket := []byte(fmt.Sprintf(AGREEMENT, numPackets))
 	retransmits := 0
@@ -107,6 +136,15 @@ func handleAgreement(conn *net.UDPConn, serverAddr *net.UDPAddr, numPackets int)
 	return -1, fmt.Errorf("connection timed-out trying to send agreement")
 }
 
+// sendPackets transmits a series of packets to the specified server address.
+//
+// Parameters:
+//   - conn: The UDP connection.
+//   - packets: A slice of packets to be sent.
+//   - serverAddr: The server's address.
+//
+// Returns:
+//   - An error if any packet fails to send, otherwise nil.
 func sendPackets(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) error {
 	for i, packet := range packets {
 		packetWithSeq := fmt.Sprintf("%d|", i) + string(packet)
@@ -119,6 +157,16 @@ func sendPackets(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) e
 	return nil
 }
 
+// awaitAcknowledgment waits for acknowledgments from the server and handles
+// retransmissions if packets are lost.
+//
+// Parameters:
+//   - conn: The UDP connection.
+//   - packets: A slice of packets to be retransmitted if necessary.
+//   - serverAddr: The server's address.
+//
+// Returns:
+//   - An error if the acknowledgment process fails, otherwise nil.
 func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte, serverAddr *net.UDPAddr) error {
 	buf := make([]byte, 1024)
 
@@ -154,6 +202,18 @@ func awaitAcknowledgment(conn *net.UDPConn, packets [][]byte, serverAddr *net.UD
 	}
 }
 
+// retransmitPackets retransmits packets starting from a specific sequence
+// number, based on the recovery type.
+//
+// Parameters:
+//   - conn: The UDP connection.
+//   - serverAddr: The server's address.
+//   - packets: A slice of packets to be retransmitted.
+//   - startSeq: The sequence number to start retransmitting from.
+//   - fast: A boolean indicating whether to use fast recovery.
+//
+// Returns:
+//   - An error if retransmission fails, otherwise nil.
 func retransmitPackets(conn *net.UDPConn, serverAddr *net.UDPAddr, packets [][]byte, startSeq int, fast bool) error {
 	if fast {
 		// Fast recovery: retransmit all packets from startSeq onward

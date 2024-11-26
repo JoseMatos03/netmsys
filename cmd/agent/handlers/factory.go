@@ -22,7 +22,14 @@ import (
 	"net"
 )
 
-// Agent represents the agent's information
+// Agent represents the agent's information and connection configuration.
+//
+// Fields:
+//   - ID: A unique identifier for the agent (e.g., "PC1").
+//   - IPAddr: The local IP address of the machine running the agent.
+//   - ServerAddr: The IP address of the server to which the agent will connect.
+//   - UDPPort: The UDP port on which the agent will communicate with the server.
+//   - TCPPort: The TCP port on which the agent will host or connect for tasks.
 type Agent struct {
 	ID         string
 	IPAddr     string
@@ -31,6 +38,23 @@ type Agent struct {
 	TCPPort    string
 }
 
+// NewAgent initializes a new Agent instance based on the provided command-line arguments.
+//
+// Parameters:
+//   - args: Command-line arguments in the format:
+//     ./agent <Agent ID> <Server IP> <UDP port> <TCP port>
+//
+// Returns:
+//   - *Agent: A pointer to the newly created Agent instance.
+//   - error: An error if insufficient arguments are provided or if the local IP address cannot be determined.
+//
+// Behavior:
+//   - Validates the number of arguments provided.
+//   - Determines the local IP address of the machine running the agent.
+//   - Initializes an Agent struct with the provided arguments and the local IP.
+//
+// Dependencies:
+//   - Requires the `getLocalIPAddress` function to determine the agent's IP address.
 func NewAgent(args []string) (*Agent, error) {
 	// Check if enough arguments are provided
 	if len(args) < 4 {
@@ -55,6 +79,17 @@ func NewAgent(args []string) (*Agent, error) {
 	}, nil
 }
 
+// getLocalIPAddress retrieves the IPv4 address of the machine running the agent.
+//
+// Returns:
+//   - string: The local IPv4 address.
+//   - error: An error if no suitable IP address can be found or if network interfaces cannot be accessed.
+//
+// Behavior:
+//   - Iterates through all network interfaces on the machine.
+//   - Skips interfaces that are down or loopback interfaces.
+//   - Checks each interface for an IPv4 address and returns the first suitable one.
+//   - Returns an error if no IPv4 address is found.
 func getLocalIPAddress() (string, error) {
 	// Get a list of all available network interfaces
 	interfaces, err := net.Interfaces()
