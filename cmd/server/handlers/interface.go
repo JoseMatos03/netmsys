@@ -47,8 +47,14 @@ func (s *Server) StartCLI() {
 		case strings.HasPrefix(command, "load"):
 			commErr = s.loadCommand(command)
 
+		/*case strings.HasPrefix(command, "send"):
+		s.send*/
+
 		case strings.HasPrefix(command, "help"):
 			s.helpCommand(command)
+
+		case command == "man":
+			s.manCommand()
 
 		case command == "quit":
 			s.quitCommand()
@@ -97,27 +103,23 @@ func (s *Server) loadCommand(command string) error {
 
 func (s *Server) helpCommand(command string) {
 	helpArgs := strings.Split(command, " ")
-	if len(helpArgs) == 1 {
-		printGeneralHelp()
-	} else if len(helpArgs) == 2 {
+	if len(helpArgs) == 2 {
 		printCommandHelp(helpArgs[1])
 	} else {
 		fmt.Println("Usage: help <command_name>")
 	}
 }
 
-func (s *Server) quitCommand() {
-	fmt.Println("Shutting down server...")
-	os.Exit(0)
-}
-
-// printGeneralHelp displays a general help message
-func printGeneralHelp() {
+func (s *Server) manCommand() {
 	fmt.Println("Available commands:")
 	fmt.Println("  send <json-file>       - Send a task from the specified JSON file")
 	fmt.Println("  quit                   - Quit the server")
-	fmt.Println("  help                   - Show general help information")
 	fmt.Println("  help <command_name>    - Show specific help for a command")
+}
+
+func (s *Server) quitCommand() {
+	fmt.Println("Shutting down server...")
+	os.Exit(0)
 }
 
 // printCommandHelp displays specific help for a given command
