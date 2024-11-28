@@ -19,11 +19,30 @@
 package handlers
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 )
 
 func (agent *Agent) StartInterface() {
 	// Display agent information
 	fmt.Printf("Agent %s is ready.\n", agent.ID)
 	fmt.Printf("Listening for UDP on port %s and TCP on port %s. Accepting packets only from server at %s.\n", agent.UDPPort, agent.TCPPort, agent.ServerAddr)
+
+	// Start interface loop
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Type a command: ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		if input == "quit" {
+			fmt.Println("Goodbye!")
+			break
+		}
+
+		// Handle other commands here if needed
+		fmt.Printf("Unknown command: %s\n", input)
+	}
 }

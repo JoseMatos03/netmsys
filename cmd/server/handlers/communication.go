@@ -38,7 +38,7 @@ func (s *Server) SendTask(taskID string) {
 
 	// Check if the task was found
 	if task == nil {
-		fmt.Printf("communication.SendTask(): Task with ID %s not found.\n", taskID)
+		fmt.Printf("Task with ID %s not found.\n", taskID)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (s *Server) SendTask(taskID string) {
 	for _, targetID := range task.Targets {
 		targetAddr, exists := s.Agents[targetID]
 		if !exists {
-			fmt.Printf("communication.SendTask(): Target %s is not registered.\n", targetID)
+			fmt.Printf("Target %s is not registered.\n", targetID)
 			continue
 		}
 
@@ -55,7 +55,7 @@ func (s *Server) SendTask(taskID string) {
 		go func() {
 			err := nettsk.Send(targetAddr, "8080", []byte(message))
 			if err != nil {
-				fmt.Printf("communication.SendTask(): failed to send task.")
+				fmt.Printf("Failed to send task %s.\n", taskID)
 				return
 			}
 			fmt.Printf("Task sent successfully.")

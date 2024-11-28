@@ -68,7 +68,7 @@ func (a *Agent) registerTask(task string) {
 	var newTask message.Task
 	err := parsers.DeserializeJSON([]byte(task), &newTask)
 	if err != nil {
-		fmt.Println("Couldn't register task!")
+		fmt.Println("Couldn't register task!") //nome da task
 	}
 
 	a.Tasks = append(a.Tasks, newTask)
