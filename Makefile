@@ -1,5 +1,6 @@
 # Directory where the binaries will be placed
 BUILD_DIR = build
+OUTPUT_DIR = outputs
 
 # Paths to main Go files for each component
 AGENT_MAIN = cmd/agent/agent.go
@@ -29,6 +30,7 @@ build-agent:
 # Clean target to remove binaries
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf $(OUTPUT_DIR)
 
 # Disable parallelism to avoid issues
 .NOTPARALLEL:

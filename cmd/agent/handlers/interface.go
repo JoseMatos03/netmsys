@@ -25,7 +25,7 @@ import (
 	"strings"
 )
 
-func (agent *Agent) StartInterface() {
+func (agent *Agent) StartCLI() {
 	// Display agent information
 	fmt.Printf("Agent %s is ready.\n", agent.ID)
 	fmt.Printf("Listening for UDP on port %s and TCP on port %s. Accepting packets only from server at %s.\n", agent.UDPPort, agent.TCPPort, agent.ServerAddr)

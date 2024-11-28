@@ -19,45 +19,59 @@
 package alrtflw
 
 import (
-	"fmt"
-	"io"
 	"net"
 )
 
-// Receive listens on the given TCP address and receives messages
-func Receive(port string) {
-	// Listen for incoming TCP connections
+// Receive listens for incoming TCP connections on the specified port and forwards
+// received data to a provided channel. Errors encountered during the listening
+// or connection handling process are sent to a separate error channel.
+//
+// Parameters:
+//   - port: The port on which the server will listen for incoming connections.
+//   - dataChannel: A channel to which received data (as byte slices) will be sent.
+//   - errorChannel: A channel to which any encountered errors will be sent.
+//
+// Note:
+//   - The function runs indefinitely, processing connections in a loop until
+//     the listener is explicitly closed.
+func Receive(port string, dataChannel chan<- []byte, errorChannel chan<- error) {
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		fmt.Println("Error starting TCP listener:", err)
+		errorChannel <- err
 		return
 	}
-	defer listener.Close() // Only defer listener.Close(), not individual connections
+	defer listener.Close()
 
 	for {
-		// Accept a connection
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			errorChannel <- err
 			continue
 		}
 
-		// Handle the connection (read the message)
-		handleConnection(conn)
+		// Handle the connection
+		handleConnection(conn, dataChannel, errorChannel)
 	}
 }
 
-// handleConnection processes an incoming TCP connection
-func handleConnection(conn net.Conn) {
+// handleConnection processes an incoming TCP connection, reads data from it,
+// and forwards the data or any encountered error to the respective channels.
+//
+// Parameters:
+//   - conn: The active TCP connection to handle.
+//   - dataChannel: A channel to which the received data (as a byte slice) will be sent.
+//   - errorChannel: A channel to which any encountered errors will be sent.
+//
+// Note:
+//   - The function closes the connection once processing is complete.
+func handleConnection(conn net.Conn, dataChannel chan<- []byte, errorChannel chan<- error) {
 	defer conn.Close()
+	buffer := make([]byte, 1024)
 
-	// Read all data from the connection until the client closes it
-	data, err := io.ReadAll(conn)
+	_, err := conn.Read(buffer)
 	if err != nil {
-		fmt.Println("Error reading from connection:", err)
-		return
+		errorChannel <- err
 	}
 
-	// Display the received message
-	fmt.Println("Received TCP message:", string(data))
+	dataChannel <- buffer
 }

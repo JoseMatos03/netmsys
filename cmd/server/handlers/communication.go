@@ -21,11 +21,24 @@ package handlers
 import (
 	"fmt"
 	"netmsys/cmd/message"
+	"netmsys/pkg/alrtflw"
 	"netmsys/pkg/nettsk"
 	"netmsys/tools/parsers"
+	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 )
 
+// SendTask locates a task by its ID and sends it to the target agents.
+//
+// Parameters:
+//   - taskID: The unique identifier of the task to send.
+//
+// Behavior:
+//   - Finds the task in the server's list of tasks based on the taskID.
+//   - Serializes the task into JSON format.
+//   - Sends the serialized task to each agent specified in the task's target list using the `nettsk.Send` function.
 func (s *Server) SendTask(taskID string) {
 	// Find the task by ID
 	var task *message.Task
@@ -63,17 +76,22 @@ func (s *Server) SendTask(taskID string) {
 	}
 }
 
+// ListenAgents listens for agent messages on the server's UDP port.
+//
+// Behavior:
+//   - Starts listening on the configured UDP port using the `nettsk.Receive` function.
+//   - Processes incoming messages by passing them to `handleAgentMessage`.
+//   - Logs any errors encountered during data reception or message handling.
+//
+// Notes:
+//   - This function is non-blocking when called with `go`.
+//   - It continuously listens for messages in an infinite loop.
 func (s *Server) ListenAgents() {
-	// UDP Channels
 	dataChannel := make(chan []byte)
 	errorChannel := make(chan error)
 
-	// Start receiving data on UDP port with Receive function
-	go func() {
-		for {
-			nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
-		}
-	}()
+	// Start receiving data on UDP port
+	go nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
 
 	fmt.Printf("Listening for agent messages on UDP port: %s\n", s.UDPPort)
 
@@ -86,13 +104,80 @@ func (s *Server) ListenAgents() {
 				fmt.Printf("communication.ListenAgents(): Error handling message.\n")
 			}
 		case err := <-errorChannel:
-			// Handle any errors reported by Receive
 			fmt.Printf("communication.ListenAgents(): Error receiving data: %s\n", err)
 		}
 	}
 }
 
-// handleAgentMessage checks if a message is a wake-up signal and registers the agent.
+// ListenAlerts listens for alert messages on the server's TCP port.
+//
+// Behavior:
+//   - Starts listening on the configured TCP port using the `alrtflw.Receive` function.
+//   - Logs incoming messages to standard output.
+//   - Logs any errors encountered during data reception.
+//
+// Notes:
+//   - This function is non-blocking when called with `go`.
+//   - It continuously listens for messages in an infinite loop.
+func (s *Server) ListenAlerts() {
+	dataChannel := make(chan []byte)
+	errorChannel := make(chan error)
+
+	// Start receiving data on TCP port
+	go alrtflw.Receive(s.TCPPort, dataChannel, errorChannel)
+
+	fmt.Printf("Listening for agent messages on TCP port: %s\n", s.TCPPort)
+
+	for {
+		select {
+		case data := <-dataChannel:
+			// Process received data
+			fmt.Printf("%s\n", string(data))
+		case err := <-errorChannel:
+			fmt.Printf("communication.ListenAgents(): Error receiving data: %s\n", err)
+		}
+	}
+}
+
+// StartUDPIperfServer starts a UDP-based Iperf server in the background.
+//
+// Behavior:
+//   - Executes the "iperf -s -u" command to start an Iperf server in UDP mode.
+//   - Runs the command in the background with no output redirection.
+//   - Logs success or returns an error if the server fails to start.
+//
+// Returns:
+//   - error: An error if the Iperf server cannot be started.
+func (s *Server) StartUDPIperfServer() error {
+	// Command to start the iperf server in the background
+	cmd := exec.Command("iperf", "-s", "-u")
+
+	// Redirect standard output and error for debugging/logging purposes
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	// Start the iperf server
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start udp iperf server: %v", err)
+	}
+
+	fmt.Println("UDP Iperf server started successfully")
+	return nil
+}
+
+// handleAgentMessage processes incoming messages from agents.
+//
+// Parameters:
+//   - data: The raw byte data received from an agent.
+//
+// Returns:
+//   - error: Returns an error if the message format is invalid or processing fails.
+//
+// Behavior:
+//   - Handles registration messages (prefix: "REGISTER|") to add agents to the server.
+//   - Handles output messages (prefix: "OUTPUT-") to log task results.
+//   - Extracts and processes task ID, iteration number, and output data for logging.
 func (s *Server) handleAgentMessage(data []byte) error {
 	message := string(data)
 	if strings.HasPrefix(message, "REGISTER|") {
@@ -111,11 +196,49 @@ func (s *Server) handleAgentMessage(data []byte) error {
 			return err
 		}
 	}
-	// Other cases will go here after...
+	if strings.HasPrefix(message, "OUTPUT-") {
+		// Split the message to extract taskID and iterationNumber
+		messageParts := strings.SplitN(message, "|", 2)
+		if len(messageParts) < 2 {
+			return fmt.Errorf("invalid message format: %s", message)
+		}
+
+		// Extract and parse the prefix part "OUTPUT-{taskID}-I{iterationNumber}"
+		prefix := messageParts[0]
+		outputData := messageParts[1]
+
+		// Use regex to extract taskID and iterationNumber from the prefix
+		re := regexp.MustCompile(`OUTPUT-(.+?)-I(\d+)`)
+		matches := re.FindStringSubmatch(prefix)
+		if len(matches) != 3 {
+			return fmt.Errorf("failed to parse taskID and iterationNumber from: %s", prefix)
+		}
+
+		taskID := matches[1]
+		iterationNumber := matches[2]
+
+		// Call the logOutput function to handle writing to the log file
+		err := s.logOutput(taskID, iterationNumber, outputData)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// registerAgent adds the agent to the map of AgentIDs if not already registered.
+// registerAgent registers a new agent with the server.
+//
+// Parameters:
+//   - agentID: The unique identifier of the agent.
+//   - ipAddr: The IP address of the agent.
+//
+// Returns:
+//   - error: Returns an error if the agent is already registered or if registration fails.
+//
+// Behavior:
+//   - Adds the agent to the server's `Agents` map.
+//   - Sends any pending tasks targeting the newly registered agent.
 func (s *Server) registerAgent(agentID, ipAddr string) error {
 	// Check if agent is already registered
 	if _, exists := s.Agents[agentID]; exists {
@@ -136,5 +259,48 @@ func (s *Server) registerAgent(agentID, ipAddr string) error {
 			}
 		}
 	}
+	return nil
+}
+
+// logOutput writes task output data to a log file.
+//
+// Parameters:
+//   - taskID: The ID of the task associated with the output.
+//   - iterationNumber: The iteration number of the task.
+//   - outputData: The output data to log.
+//
+// Returns:
+//   - error: Returns an error if the log file cannot be created, opened, or written to.
+//
+// Behavior:
+//   - Creates an output directory if it does not exist.
+//   - Appends the output data to a file named `<taskID>_i<iterationNumber>-output.txt` in the "outputs" directory.
+//
+// Notes:
+//   - Ensures thread safety when writing to files by using file-level locking.
+func (s *Server) logOutput(taskID, iterationNumber, outputData string) error {
+	// Define the output directory and log file path
+	outputDir := "outputs"
+	logFilePath := fmt.Sprintf("%s/%s_i%s-output.txt", outputDir, taskID, iterationNumber)
+
+	// Ensure the output directory exists
+	err := os.MkdirAll(outputDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// Open the log file in append mode, create it if it doesn't exist
+	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open or create log file: %v", err)
+	}
+	defer file.Close()
+
+	// Write the output data to the file
+	_, err = file.WriteString(outputData + "\n")
+	if err != nil {
+		return fmt.Errorf("failed to write to log file: %v", err)
+	}
+
 	return nil
 }
