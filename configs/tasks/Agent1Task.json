@@ -1,30 +1,25 @@
 {
-  "task_id": "t1",
-  "frequency": 60,
+  "task_id": "Agent1Task",
+  "frequency": 30,
   "targets": [
-    "PC2"
+    "Agent1"
   ],
   "alertflow_conditions": {
-    "cpu_usage": 0.8,
-    "ram_usage": 0.9,
-    "packet_loss": 0.5,
-    "interface_stats": 2000,
-    "jitter": 100
+    "cpu_usage": 0,
+    "ram_usage": 0,
+    "packet_loss": 0,
+    "interface_stats": 0,
+    "jitter": 0
   },
   "monitor_options": {
-    "monitor_cpu": true,
-    "monitor_ram": true,
-    "interfaces": [
-      {
-        "name": "eth0",
-        "ip": "10.0.5.10"
-      }
-    ]
+    "monitor_cpu": false,
+    "monitor_ram": false,
+    "interfaces": []
   },
   "device_options": [
     {
-      "device_id": "PC3",
-      "ip_address": "10.0.6.10",
+      "device_id": "Agent3",
+      "ip_address": "10.0.5.20",
       "udp_port": "8080",
       "tcp_port": "9090",
       "link_options": {
@@ -32,20 +27,20 @@
           "protocol": "udp",
           "duration": 10,
           "client_port": 5001,
-          "parallel_streams": 5,
+          "parallel_streams": 2,
           "interval": 1
         },
         "jitter": {
           "protocol": "udp",
-          "bandwidth": "10M",
+          "bandwidth": "2M",
           "duration": 10,
           "client_port": 5001,
           "packet_size": 1470,
-          "interval": 1
+          "interval": 2
         },
         "packet_loss": {
           "protocol": "udp",
-          "bandwidth": "5M",
+          "bandwidth": "1M",
           "duration": 10,
           "client_port": 5001,
           "packet_size": 1470,

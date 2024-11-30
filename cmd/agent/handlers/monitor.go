@@ -440,10 +440,6 @@ func (a *Agent) monitorInterface(iface string, ifaceIP string, stats int, jitter
 	ticker := time.NewTicker(time.Duration(frequency) * time.Second)
 	defer ticker.Stop()
 
-	var prevPacketsSent uint64
-	var prevPacketsRecv uint64
-	var prevTime time.Time
-
 	for range ticker.C {
 		// Get network I/O stats for the specified interface
 		ioStats, err := net.IOCounters(true)
@@ -466,17 +462,12 @@ func (a *Agent) monitorInterface(iface string, ifaceIP string, stats int, jitter
 			continue
 		}
 
-		// Calculate packets per second (PPS) if this isn't the first iteration
-		if !prevTime.IsZero() {
-			duration := time.Since(prevTime).Seconds()
-			packetsSentPerSec := float64(currentIO.PacketsSent-prevPacketsSent) / duration
-			packetsRecvPerSec := float64(currentIO.PacketsRecv-prevPacketsRecv) / duration
+		packetsSent := currentIO.PacketsSent
 
-			// Check if PPS exceeds the threshold
-			if packetsSentPerSec > float64(stats) || packetsRecvPerSec > float64(stats) {
-				ppsAlert := fmt.Sprintf("ALERT: High packets per second on %s: Sent=%.2f, Recv=%.2f", iface, packetsSentPerSec, packetsRecvPerSec)
-				alrtflw.Send(a.ServerAddr, a.TCPPort, []byte(ppsAlert))
-			}
+		// Check if PPS exceeds the threshold
+		if packetsSent > uint64(stats) {
+			ppsAlert := fmt.Sprintf("ALERT: High packets per second on %s: Sent=%d", iface, packetsSent)
+			alrtflw.Send(a.ServerAddr, a.TCPPort, []byte(ppsAlert))
 		}
 
 		// Run Iperf to measure jitter and packet loss
@@ -497,11 +488,6 @@ func (a *Agent) monitorInterface(iface string, ifaceIP string, stats int, jitter
 			packetLossAlert := fmt.Sprintf("ALERT: High packet loss on %s: %.2f%%", iface, packetLoss)
 			alrtflw.Send(a.ServerAddr, a.TCPPort, []byte(packetLossAlert))
 		}
-
-		// Update previous stats and time
-		prevPacketsSent = currentIO.PacketsSent
-		prevPacketsRecv = currentIO.PacketsRecv
-		prevTime = time.Now()
 	}
 }
 
@@ -542,7 +528,7 @@ func (a *Agent) runIperfForInterface(ifaceIP string, duration int) (float64, flo
 	// Match and extract jitter
 	jitterMatch := jitterRegex.FindStringSubmatch(output)
 	if jitterMatch == nil {
-		log.Printf("Failed to parse jitter from Iperf output: %s", output)
+		log.Printf("Failed to parse jitter from Iperf output")
 		return 0, 0, fmt.Errorf("failed to parse jitter")
 	}
 	jitter, err := strconv.ParseFloat(jitterMatch[1], 64)
