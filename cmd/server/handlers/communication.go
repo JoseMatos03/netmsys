@@ -39,7 +39,7 @@ import (
 //   - Finds the task in the server's list of tasks based on the taskID.
 //   - Serializes the task into JSON format.
 //   - Sends the serialized task to each agent specified in the task's target list using the `nettsk.Send` function.
-func (s *Server) SendTask(taskID string) {
+func (s *Server) SendTask(taskID string) error {
 	// Find the task by ID
 	var task *message.Task
 	for i := range s.Tasks {
@@ -51,15 +51,14 @@ func (s *Server) SendTask(taskID string) {
 
 	// Check if the task was found
 	if task == nil {
-		fmt.Printf("communication.SendTask(): Task with ID %s not found.\n", taskID)
-		return
+		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
 	// Send task to each target
 	for _, targetID := range task.Targets {
 		targetAddr, exists := s.Agents[targetID]
 		if !exists {
-			fmt.Printf("communication.SendTask(): Target %s is not registered.\n", targetID)
+			fmt.Printf("Target %s is not registered.\n", targetID)
 			continue
 		}
 
@@ -68,12 +67,12 @@ func (s *Server) SendTask(taskID string) {
 		go func() {
 			err := nettsk.Send(targetAddr, "8080", []byte(message))
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed to send task %s to target: %s.\n", taskID, targetAddr)
 				return
 			}
-			fmt.Printf("Task sent successfully.")
 		}()
 	}
+	return nil
 }
 
 // ListenAgents listens for agent messages on the server's UDP port.
@@ -148,7 +147,7 @@ func (s *Server) ListenAlerts() {
 //
 // Returns:
 //   - error: An error if the Iperf server cannot be started.
-func (s *Server) StartUDPIperfServer() error {
+func (s *Server) StartUDPIperfServer() {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s", "-u")
 
@@ -159,11 +158,8 @@ func (s *Server) StartUDPIperfServer() error {
 	// Start the iperf server
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start udp iperf server: %v", err)
+		fmt.Println(err)
 	}
-
-	fmt.Println("UDP Iperf server started successfully")
-	return nil
 }
 
 // handleAgentMessage processes incoming messages from agents.

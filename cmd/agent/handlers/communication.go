@@ -67,7 +67,7 @@ func (a *Agent) ListenServer() {
 	// Start receiving data on UDP port with Receive function
 	go nettsk.Receive(a.UDPPort, dataChannel, errorChannel)
 
-	fmt.Println("Agent is listening for server messages on UDP port", a.UDPPort)
+	//fmt.Println("Agent is listening for server messages on UDP port", a.UDPPort)
 
 	for {
 		select {
@@ -90,7 +90,7 @@ func (a *Agent) ListenServer() {
 //
 // Returns:
 //   - error: An error if the Iperf server cannot be started.
-func (a *Agent) StartTCPIperfServer() error {
+func (a *Agent) StartTCPIperfServer() {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s")
 
@@ -101,11 +101,8 @@ func (a *Agent) StartTCPIperfServer() error {
 	// Start the iperf server
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start tcp iperf server: %v", err)
+		fmt.Println(err)
 	}
-
-	fmt.Println("TCP Iperf server started successfully")
-	return nil
 }
 
 // StartUDPIperfServer starts a UDP-based Iperf server in the background.
@@ -117,7 +114,7 @@ func (a *Agent) StartTCPIperfServer() error {
 //
 // Returns:
 //   - error: An error if the Iperf server cannot be started.
-func (a *Agent) StartUDPIperfServer() error {
+func (a *Agent) StartUDPIperfServer() {
 	// Command to start the iperf server in the background
 	cmd := exec.Command("iperf", "-s", "-u")
 
@@ -128,11 +125,8 @@ func (a *Agent) StartUDPIperfServer() error {
 	// Start the iperf server
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start udp iperf server: %v", err)
+		fmt.Println(err)
 	}
-
-	fmt.Println("UDP Iperf server started successfully")
-	return nil
 }
 
 // handleServerMessage processes incoming messages from the server.
@@ -176,9 +170,9 @@ func (a *Agent) registerTask(task string) {
 	var newTask message.Task
 	err := parsers.DeserializeJSON([]byte(task), &newTask)
 	if err != nil {
-		fmt.Println("Couldn't register task!")
+		fmt.Printf("Couldn't register task: %s\n", task)
 	}
 
 	a.AddTask(newTask)
-	fmt.Println("Registered new task:", newTask.TaskID)
+	fmt.Printf("Registered new task:%s\n", newTask.TaskID)
 }

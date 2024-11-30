@@ -35,6 +35,4 @@ func main() {
 	go server.ListenAlerts()
 	go server.StartUDPIperfServer()
 	server.StartCLI()
-
-	// The program will continue running until the user enters the "quit" command
 }
