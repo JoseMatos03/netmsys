@@ -47,8 +47,8 @@ func (s *Server) StartCLI() {
 		case strings.HasPrefix(command, "load"):
 			commErr = s.loadCommand(command)
 
-		/*case strings.HasPrefix(command, "send"):
-		s.send*/
+		case strings.HasPrefix(command, "send"):
+			commErr = s.sendCommand(command)
 
 		case strings.HasPrefix(command, "help"):
 			s.helpCommand(command)
@@ -101,6 +101,34 @@ func (s *Server) loadCommand(command string) error {
 	return nil
 }
 
+func (s *Server) sendCommand(command string) error {
+	// Extract the path to the JSON file from the command
+	// Assuming the format is "send <path-to-json>"
+	commandParts := strings.Split(command, " ")
+	if len(commandParts) < 2 {
+		return fmt.Errorf("invalid command format. Usage: load <path-to-json>")
+	}
+
+	jsonFile := commandParts[1]
+
+	// Read the JSON file into a Task struct
+	var task message.Task
+	err := parsers.ReadJSONFile(jsonFile, &task)
+	if err != nil {
+		return fmt.Errorf("failed to read task JSON file: %v", err)
+	}
+
+	// Check if the task is already in the array and send it
+	for _, existingTask := range s.Tasks {
+		if existingTask.TaskID == task.TaskID {
+			s.SendTask(task.TaskID)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("task %s is not loaded", task.TaskID)
+}
+
 func (s *Server) helpCommand(command string) {
 	helpArgs := strings.Split(command, " ")
 	if len(helpArgs) == 2 {
@@ -126,6 +154,9 @@ func (s *Server) quitCommand() {
 func printCommandHelp(command string) {
 	switch command {
 	case "load_task":
+		fmt.Println("Usage: load_task <json-file>")
+		fmt.Println("Description: Loads a task from the specified JSON file and sends it to its targets.")
+	case "send":
 		fmt.Println("Usage: send <json-file>")
 		fmt.Println("Description: Sends a task from the specified JSON file to its targets.")
 	case "quit":

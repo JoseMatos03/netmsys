@@ -93,7 +93,7 @@ func (s *Server) ListenAgents() {
 	// Start receiving data on UDP port
 	go nettsk.Receive(s.UDPPort, dataChannel, errorChannel)
 
-	fmt.Printf("Listening for agent messages on UDP port: %s\n", s.UDPPort)
+	//fmt.Printf("Listening for agent messages on UDP port: %s\n", s.UDPPort)
 
 	for {
 		select {
@@ -126,7 +126,7 @@ func (s *Server) ListenAlerts() {
 	// Start receiving data on TCP port
 	go alrtflw.Receive(s.TCPPort, dataChannel, errorChannel)
 
-	fmt.Printf("Listening for agent messages on TCP port: %s\n", s.TCPPort)
+	//fmt.Printf("Listening for agent messages on TCP port: %s\n", s.TCPPort)
 
 	for {
 		select {
@@ -162,7 +162,7 @@ func (s *Server) StartUDPIperfServer() error {
 		return fmt.Errorf("failed to start udp iperf server: %v", err)
 	}
 
-	fmt.Println("UDP Iperf server started successfully")
+	//fmt.Println("UDP Iperf server started successfully")
 	return nil
 }
 
